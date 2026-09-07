@@ -1,16 +1,17 @@
 {
-  "name": "my-project",
+  "name": "exp-imcyc",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "build:deploy": "NEXT_PUBLIC_BASE_PATH=/exp-imcyc next build",
+    "typecheck": "tsc --noEmit",
+    "test": "php tests/validation.php",
+    "preview": "php -S 127.0.0.1:4187 -t out scripts/preview.php"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
-    "@supabase/supabase-js": "^2.116.0",
-    "@vercel/analytics": "1.6.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jspdf": "^4.2.1",

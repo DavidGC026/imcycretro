@@ -7,9 +7,17 @@ __v0_jsx-dev-runtime.ts
 .vercel/
 
 # Environment variables
-.env*.local
+.env*
+!.env.example
+config.local.php
+*.credentials
 
 # Common ignores
 node_modules
 .next/
 .DS_Store
+out/
+output/
+tmp/
+*.tsbuildinfo
+next-env.d.ts

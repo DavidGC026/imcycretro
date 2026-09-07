@@ -39,6 +39,16 @@
   html { background: var(--background); }
   body { @apply bg-background text-foreground font-sans; min-height: 100vh; }
   button, input { font: inherit; }
+  button:not(:disabled), a, select { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+}
+
+@layer components {
+  .panel-input { @apply min-h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-400 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/25 disabled:opacity-60; }
+  .panel-label { @apply mb-2 block text-xs font-medium text-slate-400; }
+  .panel-action { @apply inline-flex min-h-11 items-center gap-2 rounded-xl bg-cyan-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 disabled:opacity-50; }
+  .panel-secondary { @apply inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-slate-500 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 disabled:opacity-40; }
+  .panel-detail-button { @apply inline-flex min-h-10 items-center gap-2 whitespace-nowrap rounded-lg px-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-400/10 focus-visible:outline-2 focus-visible:outline-cyan-300; }
 }
 
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
