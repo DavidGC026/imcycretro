@@ -3,10 +3,30 @@ declare(strict_types=1);
 
 function sessionStatus(): array
 {
+    $admin = authenticatedAdministrator();
     return [
-        'csrf' => $_SESSION['csrf'], 'authenticated' => !empty($_SESSION['admin_id']),
-        'username' => $_SESSION['admin_username'] ?? null,
+        'csrf' => $_SESSION['csrf'], 'authenticated' => $admin !== null,
+        'username' => $admin['username'] ?? null,
     ];
+}
+
+function clearAdministratorSession(): void
+{
+    unset($_SESSION['admin_id'], $_SESSION['admin_username'], $_SESSION['admin_expires'], $_SESSION['admin_signature']);
+}
+
+function authenticatedAdministrator(): ?array
+{
+    if (empty($_SESSION['admin_id'])) return null;
+    $statement = database()->prepare('SELECT id, username, password_hash FROM administrators WHERE id = ?');
+    $statement->execute([$_SESSION['admin_id']]);
+    $admin = $statement->fetch();
+    // Cambiar la contraseña invalida las sesiones creadas con la clave anterior.
+    if (!$admin || !hash_equals(hash('sha256', $admin['password_hash']), $_SESSION['admin_signature'] ?? '')) {
+        clearAdministratorSession();
+        return null;
+    }
+    return $admin;
 }
 
 function login(array $body): array
@@ -27,12 +47,13 @@ function login(array $body): array
     $_SESSION['admin_id'] = (int) $admin['id'];
     $_SESSION['admin_username'] = $admin['username'];
     $_SESSION['admin_expires'] = time() + 8 * 3600;
+    $_SESSION['admin_signature'] = hash('sha256', $admin['password_hash']);
     return sessionStatus();
 }
 
 function logout(): array
 {
-    unset($_SESSION['admin_id'], $_SESSION['admin_username'], $_SESSION['admin_expires']);
+    clearAdministratorSession();
     session_regenerate_id(true);
     $_SESSION['csrf'] = bin2hex(random_bytes(32));
     return sessionStatus();

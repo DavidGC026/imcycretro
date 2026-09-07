@@ -1,16 +1,30 @@
 'use client'
 
-import { useEffect, useState, type FormEvent } from 'react'
-import { ArrowLeft, ArrowRight, Loader2, LockKeyhole, LogOut, RefreshCw, Search } from 'lucide-react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { ArrowLeft, ArrowRight, ClipboardList, Loader2, LockKeyhole, LogOut, RefreshCw, Search, Users } from 'lucide-react'
 import { api, ApiError, errorMessage, getSession } from '@/lib/api'
 import { assetPath } from '@/lib/paths'
 import { displayDate, serviceGroups, type Registration, type RegistrationResults } from '@/lib/registration'
 import { RegistrationDetail } from './RegistrationDetail'
+import { UserManagement } from './UserManagement'
 
 export function AdminPanel() {
   const [username, setUsername] = useState<string | null>(null)
   const [checking, setChecking] = useState(true)
   const [error, setError] = useState('')
+  const [section, setSection] = useState('registrations')
+
+  const sessionExpired = useCallback(() => {
+    setUsername(null)
+    setError('Tu sesión terminó. Ingresa nuevamente.')
+  }, [])
+
+  useEffect(() => {
+    const updateSection = () => setSection(window.location.hash === '#usuarios' ? 'users' : 'registrations')
+    updateSection()
+    window.addEventListener('hashchange', updateSection)
+    return () => window.removeEventListener('hashchange', updateSection)
+  }, [])
 
   useEffect(() => {
     getSession()
@@ -26,14 +40,20 @@ export function AdminPanel() {
           <img src={assetPath('/logo-imcyc.png')} alt="IMCYC" className="h-12 w-20 object-contain" />
           <span className="border-l border-slate-700 pl-4 font-mono text-[10px] uppercase leading-5 tracking-[0.2em] text-slate-400">Comunidad IMCYC<br /><span className="text-cyan-300">Administración</span></span>
         </a>
-        {username && <button className="panel-secondary" onClick={async () => {
+        {username && <div className="flex items-center gap-4"><span className="text-xs text-slate-400">Sesión: <strong className="text-slate-200">{username}</strong></span><button className="panel-secondary" onClick={async () => {
           try { await api('logout', { body: {} }); setUsername(null); setError('') }
           catch (error) { setError(errorMessage(error)) }
-        }}><LogOut size={15} aria-hidden="true" /> Cerrar sesión</button>}
+        }}><LogOut size={15} aria-hidden="true" /> Cerrar sesión</button></div>}
       </header>
       {error && <p role="alert" className="mb-5 rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">{error}</p>}
       {checking ? <p role="status" className="py-20 text-center text-slate-400">Comprobando acceso…</p>
-        : username ? <Registrations onSessionExpired={() => { setUsername(null); setError('Tu sesión terminó. Ingresa nuevamente.') }} />
+        : username ? <>
+          <nav aria-label="Secciones del panel" className="mb-8 flex gap-2 border-b border-slate-800 pb-4">
+            <a href="#registros" aria-current={section === 'registrations' ? 'page' : undefined} className={section === 'registrations' ? 'panel-action' : 'panel-secondary'}><ClipboardList size={16} aria-hidden="true" /> Registros</a>
+            <a href="#usuarios" aria-current={section === 'users' ? 'page' : undefined} className={section === 'users' ? 'panel-action' : 'panel-secondary'}><Users size={16} aria-hidden="true" /> Usuarios</a>
+          </nav>
+          {section === 'users' ? <UserManagement username={username} onSessionExpired={sessionExpired} /> : <Registrations onSessionExpired={sessionExpired} />}
+        </>
           : <Login onLogin={(username) => { setUsername(username); setError('') }} />}
     </div>
   </main>
@@ -66,7 +86,7 @@ function Login({ onLogin }: { onLogin: (username: string) => void }) {
       <div><label htmlFor="username" className="mb-2 block text-sm font-medium">Usuario</label><input className="panel-input" id="username" autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} required maxLength={100} disabled={saving} /></div>
       <div><label htmlFor="password" className="mb-2 block text-sm font-medium">Contraseña</label><input className="panel-input" type="password" id="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required maxLength={1024} disabled={saving} /></div>
       {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
-      <button className="panel-action w-full justify-center" disabled={saving}>{saving ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : <ArrowRight size={17} aria-hidden="true" />}{saving ? 'Ingresando…' : 'Entrar al panel'}</button>
+      <button type="submit" className="panel-action w-full justify-center" disabled={saving}>{saving ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : <ArrowRight size={17} aria-hidden="true" />}{saving ? 'Ingresando…' : 'Entrar al panel'}</button>
     </form>
   </div>
 }

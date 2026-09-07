@@ -33,4 +33,14 @@ check(count($parameters) === 4 && str_contains($parameters[0], '\\%'), 'Escapar 
 rejects(fn() => registrationFilters(['status' => 'hacked']));
 rejects(fn() => registrationFilters(['service' => 'unknown']));
 rejects(fn() => registrationFilters(['search' => []]));
+check(validateAdministratorUsername(['username' => ' Operador_01 ']) === 'operador_01', 'Normalizar el nuevo nombre de usuario.');
+foreach (['ab', '-admin', 'usuario con espacios', 'área', str_repeat('a', 101)] as $username) {
+    rejects(fn() => validateAdministratorUsername(['username' => $username]));
+}
+$password = '  Contraseña amplia para administración  ';
+check(validateNewPassword(['newPassword' => $password, 'confirmPassword' => $password]) === $password, 'Conservar espacios y acentos de la contraseña.');
+foreach (['corta', str_repeat('x', 129), str_repeat(' ', 20), "Contraseña\0inválida", []] as $password) {
+    rejects(fn() => validateNewPassword(['newPassword' => $password, 'confirmPassword' => $password]));
+}
+rejects(fn() => validateNewPassword(['newPassword' => 'Contraseña de prueba', 'confirmPassword' => 'Otra contraseña distinta']));
 echo "$checks validaciones correctas.\n";

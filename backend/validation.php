@@ -78,3 +78,29 @@ function registrationFilters(array $query): array
     }
     return [$clauses ? ' WHERE ' . implode(' AND ', $clauses) : '', $parameters];
 }
+
+function validateAdministratorUsername(array $body): string
+{
+    $username = strtolower(requiredText($body, 'username', 'usuario', 100));
+    if (!preg_match('/\A[a-z0-9][a-z0-9._-]{2,99}\z/', $username)) {
+        throw new HttpError(422, 'El usuario debe tener de 3 a 100 caracteres: letras, números, puntos o guiones.');
+    }
+    return $username;
+}
+
+function validateNewPassword(array $body): string
+{
+    $password = $body['newPassword'] ?? null;
+    $confirmation = $body['confirmPassword'] ?? null;
+    if (!is_string($password) || strlen($password) > 512 || str_contains($password, "\0")) {
+        throw new HttpError(422, 'La nueva contraseña debe tener entre 12 y 128 caracteres.');
+    }
+    $length = preg_match_all('/./us', $password);
+    if ($length === false || $length < 12 || $length > 128 || trim($password) === '') {
+        throw new HttpError(422, 'La nueva contraseña debe tener entre 12 y 128 caracteres.');
+    }
+    if (!is_string($confirmation) || !hash_equals($password, $confirmation)) {
+        throw new HttpError(422, 'Las contraseñas nuevas no coinciden.');
+    }
+    return $password;
+}

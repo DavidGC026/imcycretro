@@ -25,6 +25,20 @@ La API usa consultas preparadas, validación, cookies HttpOnly/Secure/SameSite,
 tokens CSRF, sesiones administrativas de 8 horas y límites de intentos de acceso.
 Las consultas administrativas requieren autenticación y no se almacenan en caché.
 
+La sección **Usuarios** (`/panel/#usuarios`) permite crear administradores y
+cambiar la contraseña propia o la de otro usuario. Todos tienen los mismos
+permisos para consultar registros y administrar cuentas. Cada cambio exige la
+contraseña actual del administrador que lo realiza y un token CSRF válido.
+Los nombres son únicos sin distinguir mayúsculas; las claves nuevas requieren
+entre 12 y 128 caracteres y se guardan con Argon2id (sin truncarlas a 72 bytes).
+Las contraseñas existentes en bcrypt siguen funcionando.
+
+Cada sesión autenticada conserva una huella del hash vigente. Al cambiar una
+contraseña, las demás sesiones de esa cuenta pierden acceso en su siguiente
+solicitud. El cambio propio mantiene abierta la sesión actual y renueva su cookie
+y token CSRF. Al instalar esta actualización, las sesiones del panel creadas
+antes de que existiera la huella deben iniciar sesión nuevamente.
+
 Supabase fue retirado de la aplicación. El checkout original no incluía URL ni
 credenciales de Supabase; este despliegue crea una base nueva y no importa datos
 históricos de un proyecto externo.
@@ -32,7 +46,7 @@ históricos de un proyecto externo.
 ## Build y comprobaciones
 
 Requisitos: Node 20.9+ (Node 22.18+ para el generador de muestra PDF), pnpm 11,
-PHP 8.2+ con `pdo_mysql`, MySQL 8+ o MariaDB 10.6+.
+PHP 8.2+ con `pdo_mysql` y soporte de Argon2id, MySQL 8+ o MariaDB 10.6+.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -57,6 +71,8 @@ El artefacto publicable es `out/`, incluida la entrada PHP de la API. El directo
   `DELETE` sobre `exp_imcyc.*`.
 - Administrador inicial: `admin`. Contraseñas aleatorias en
   `/root/exp-imcyc.credentials`, modo `0600`; no incluirlas en Git ni en `out/`.
+  Ese archivo conserva la contraseña inicial; los cambios posteriores desde el
+  panel se guardan únicamente como hash en la base y no actualizan ese archivo.
 
 `scripts/provision.php` crea la base, el usuario y las tablas de
 `backend/schema.sql`. Ejecútalo como root desde un paquete que conserve la
@@ -99,7 +115,13 @@ usarse contra la base de producción.
 
 ```bash
 python3 tests/api.py
+python3 tests/administrators.py
 ```
+
+Las pruebas de administradores comprueban creación y duplicados, contraseña
+actual obligatoria, cambios propios y de otra cuenta, claves Unicode largas,
+rotación de CSRF y rechazo de sesiones anteriores. Utilizan cuentas temporales
+en la base local de pruebas; no modifican la contraseña del administrador `qa`.
 
 ## PDF del kit
 
@@ -109,6 +131,11 @@ servicio, franja azul con folio y condiciones de vigencia. El panel y el flujo
 público comparten este generador. La fecha procede de la emisión guardada en la
 base, en horario de Ciudad de México; descargar de nuevo no renueva la vigencia.
 Los nombres largos ajustan su tamaño y pueden ocupar varias líneas.
+
+El footer incluye el WhatsApp **55 2104 5612** y el correo **cursos@imcyc.com**, con
+enlaces de contacto. Las condiciones de la referencia especifican 14 días
+naturales desde la emisión, beneficio no transferible, no acumulable con otros
+descuentos, becas o promociones y descuento sobre el precio lista antes de IVA.
 
 Poppins se sirve localmente bajo la licencia OFL de `public/fonts/OFL.txt`.
 

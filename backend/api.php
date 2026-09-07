@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/administrators.php';
 require_once __DIR__ . '/registrations.php';
 
 header('Content-Type: application/json; charset=utf-8');
@@ -15,8 +16,8 @@ try {
     beginSession();
     $action = $_GET['action'] ?? '';
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-    $getActions = ['session', 'registration.current', 'admin.registrations'];
-    $postActions = ['login', 'logout', 'registration.save', 'registration.reset', 'survey.submit'];
+    $getActions = ['session', 'registration.current', 'admin.registrations', 'admin.users'];
+    $postActions = ['login', 'logout', 'registration.save', 'registration.reset', 'survey.submit', 'admin.users.create', 'admin.users.password'];
     if (!is_string($action) || !in_array($action, array_merge($getActions, $postActions), true)) throw new HttpError(404, 'Ruta no encontrada.');
     $expectedMethod = in_array($action, $getActions, true) ? 'GET' : 'POST';
     if ($method !== $expectedMethod) {
@@ -40,6 +41,9 @@ try {
         'registration.save' => saveIdentity($body),
         'survey.submit' => submitSurvey($body),
         'admin.registrations' => listRegistrations($_GET),
+        'admin.users' => listAdministrators(),
+        'admin.users.create' => createAdministrator($body),
+        'admin.users.password' => changeAdministratorPassword($body),
     });
 } catch (HttpError $error) {
     respond(['error' => $error->getMessage()], $error->status);

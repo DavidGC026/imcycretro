@@ -44,7 +44,7 @@ function beginSession(): void
     session_start();
     if (!isset($_SESSION['csrf'])) $_SESSION['csrf'] = bin2hex(random_bytes(32));
     if (isset($_SESSION['admin_expires']) && $_SESSION['admin_expires'] <= time()) {
-        unset($_SESSION['admin_id'], $_SESSION['admin_username'], $_SESSION['admin_expires']);
+        unset($_SESSION['admin_id'], $_SESSION['admin_username'], $_SESSION['admin_expires'], $_SESSION['admin_signature']);
     }
 }
 
@@ -81,9 +81,11 @@ function requireWriteAccess(): void
     }
 }
 
-function requireAdmin(): void
+function requireAdmin(): array
 {
-    if (empty($_SESSION['admin_id'])) throw new HttpError(401, 'Inicia sesión para consultar los registros.');
+    $admin = authenticatedAdministrator();
+    if (!$admin) throw new HttpError(401, 'Tu sesión terminó. Inicia sesión nuevamente.');
+    return $admin;
 }
 
 function rateLimit(string $scope, string $identity, int $limit, int $seconds): void
