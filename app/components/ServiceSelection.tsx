@@ -6,7 +6,9 @@ import { api, errorMessage } from '@/lib/api'
 import { discountText, opinionConsentText, serviceGroups, type Identity, type Registration } from '@/lib/registration'
 
 type Props = { user: Identity; registration: Registration | null; onBack: () => void; onReset: () => Promise<void> }
-const GOOGLE_REVIEW_URL = 'https://www.google.com/search?q=IMCYC+Instituto+Mexicano+del+Cemento+y+del+Concreto+Google+Maps'
+// Abre el formulario de reseña de la ficha del IMCYC; una búsqueda obligaba a
+// encontrar el negocio antes de poder calificarlo.
+const GOOGLE_REVIEW_URL = 'https://search.google.com/local/writereview?placeid=ChIJ9fKDC_T_0YUR6nS6Hq4CNrs'
 
 export function ServiceSelection({ user, registration, onBack, onReset }: Props) {
   const [step, setStep] = useState(registration?.completed_at ? 4 : 2)

@@ -1,8 +1,10 @@
 export type Identity = { name: string; company: string; email: string }
 
+// Cada grupo se lista alfabéticamente; el formulario y el filtro del panel los
+// muestran en este orden.
 export const serviceGroups = {
-  'Gerencia de Enseñanza': ['Certificación', 'Diplomado', 'Seminario', 'Congreso', 'Conferencia'],
-  'Gerencia Técnica': ['Lab. Concreto', 'Ensayos Aptitud'],
+  'Gerencia de Enseñanza': ['Certificación', 'Conferencia', 'Congreso', 'Diplomado', 'Seminario'],
+  'Gerencia Técnica': ['Ensayos Aptitud', 'Lab. Concreto'],
 }
 
 export const discountText = '10% DE DESCUENTO EN CUALQUIER CONSTANCIA DE APTITUD.'
