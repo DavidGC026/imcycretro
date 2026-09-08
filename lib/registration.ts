@@ -1,7 +1,7 @@
 export type Identity = { name: string; company: string; email: string }
 
 export const serviceGroups = {
-  'Gerencia de Enseñanza': ['Certificación', 'Diplomado', 'Seminario', 'Congreso'],
+  'Gerencia de Enseñanza': ['Certificación', 'Diplomado', 'Seminario', 'Congreso', 'Conferencia'],
   'Gerencia Técnica': ['Lab. Concreto', 'Ensayos Aptitud'],
 }
 

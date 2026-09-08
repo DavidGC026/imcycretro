@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const SERVICES = ['Certificación', 'Diplomado', 'Seminario', 'Congreso', 'Lab. Concreto', 'Ensayos Aptitud'];
+const SERVICES = ['Certificación', 'Diplomado', 'Seminario', 'Congreso', 'Conferencia', 'Lab. Concreto', 'Ensayos Aptitud'];
 const DISCOUNT_TEXT = '10% DE DESCUENTO EN CUALQUIER CONSTANCIA DE APTITUD.';
 const OPINION_CONSENT_TEXT = 'Autorizo el uso de mi opinión como testimonio';
 
