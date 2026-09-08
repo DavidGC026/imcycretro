@@ -14,6 +14,7 @@ config.local.php
 
 # Common ignores
 node_modules
+backend/vendor/
 .next/
 .DS_Store
 out/

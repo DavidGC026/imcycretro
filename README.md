@@ -7,7 +7,7 @@ administrativo está en `/panel/`. En producción la aplicación vive bajo
 ## Arquitectura y persistencia
 
 Next.js genera HTML, CSS y JavaScript estáticos con `output: 'export'`. Apache sirve
-el contenido de `out/`; PHP 8.2+ con PDO MySQL atiende `/api/index.php`. No se necesita
+el contenido de `out/`; PHP 8.3+ con PDO MySQL atiende `/api/index.php`. No se necesita
 un proceso Node en producción. Este formato aprovecha Apache y PHP ya instalados
 en el servidor y mantiene las credenciales fuera de los archivos públicos.
 
@@ -24,6 +24,29 @@ Una encuesta enviada conserva sus respuestas y folio ante reintentos de red.
 La API usa consultas preparadas, validación, cookies HttpOnly/Secure/SameSite,
 tokens CSRF, sesiones administrativas de 8 horas y límites de intentos de acceso.
 Las consultas administrativas requieren autenticación y no se almacenan en caché.
+
+**Exportar Excel** descarga un `.xlsx` con todos los registros que coinciden con
+la búsqueda, estado, servicio y autorización aplicados, incluidas todas las páginas. Sin filtros
+descarga todos los registros. Incluye contacto, estado, respuestas, calificación,
+folio y fechas en horario de Ciudad de México. Los campos pendientes quedan
+vacíos; las fechas y calificaciones conservan sus tipos para ordenar y calcular.
+El archivo incorpora encabezados fijos y filtros de Excel.
+
+En el **paso 2**, después de las tres preguntas, aparece la casilla opcional
+«Autorizo el uso de mi opinión como testimonio», desmarcada por defecto. Al enviar
+la encuesta se guardan la decisión, su fecha y el texto presentado. No autorizar
+permite continuar al kit. Los reintentos conservan la primera decisión guardada.
+El listado, detalle y Excel distinguen **Autorizó**, **No autorizó** y **Sin
+autorización registrada**; el panel permite filtrar por esos estados. Los registros
+anteriores y formularios antiguos que no enviaban esta respuesta permanecen sin
+autorización registrada, sin atribuirles consentimiento.
+
+La ruta autenticada `admin.registrations.export` reutiliza los filtros del listado.
+[OpenSpout](https://github.com/openspout/openspout) genera el libro por filas desde
+una consulta sin búfer, sin cargar todos los participantes en la memoria de PHP.
+El texto se guarda explícitamente como texto para evitar fórmulas introducidas en
+campos de participantes. Los archivos temporales se crean bajo el directorio
+privado de sesiones y se eliminan al finalizar; no quedan copias en el build.
 
 La sección **Usuarios** (`/panel/#usuarios`) permite crear administradores y
 cambiar la contraseña propia o la de otro usuario. Todos tienen los mismos
@@ -46,10 +69,12 @@ históricos de un proyecto externo.
 ## Build y comprobaciones
 
 Requisitos: Node 20.9+ (Node 22.18+ para el generador de muestra PDF), pnpm 11,
-PHP 8.2+ con `pdo_mysql` y soporte de Argon2id, MySQL 8+ o MariaDB 10.6+.
+PHP 8.3+ con `pdo_mysql`, `dom`, `xmlreader`, `zip`, `fileinfo` y soporte de Argon2id,
+Composer 2, MySQL 8+ o MariaDB 10.6+.
 
 ```bash
 pnpm install --frozen-lockfile
+composer install --working-dir=backend --no-dev --prefer-dist --optimize-autoloader
 pnpm test
 pnpm run typecheck
 pnpm run build:deploy
@@ -58,7 +83,9 @@ pnpm run build:deploy
 `build:deploy` fija `NEXT_PUBLIC_BASE_PATH=/exp-imcyc` para imágenes, fuentes,
 peticiones API y rutas de Next. `pnpm run build` genera el sitio para la raíz.
 El artefacto publicable es `out/`, incluida la entrada PHP de la API. El directorio
-`backend/` debe instalarse fuera de la raíz pública.
+`backend/`, incluido `vendor/` instalado con el `composer.lock` versionado, debe
+instalarse fuera de la raíz pública. Instala las dependencias antes de publicar
+la API de exportación; `vendor/` no se incluye en Git.
 
 ## Servidor
 
@@ -79,6 +106,13 @@ El artefacto publicable es `out/`, incluida la entrada PHP de la API. El directo
 estructura `scripts/` y `backend/`. Es idempotente y se detiene si encuentra una
 base o usuario preexistentes sin configuración propia. Conserva las contraseñas
 en despliegues posteriores.
+
+Antes de publicar el backend que guarda autorizaciones, ejecuta `scripts/migrate.php`
+como root desde el paquete completo, con `EXP_IMCYC_CONFIG` si no se usa la ruta
+privada habitual. Agrega tres columnas opcionales de forma idempotente y conserva
+los registros existentes con valores `NULL`. El usuario de la aplicación mantiene
+sus permisos de datos; no recibe permisos para modificar el esquema. En pruebas
+locales, `EXP_IMCYC_MYSQL_SOCKET` permite usar el socket de la instancia temporal.
 
 `deploy/apache-exp-imcyc.conf` se incluye dentro del VirtualHost HTTPS de
 `grabador.imcyc.com`, mediante `/etc/apache2/exp-imcyc.conf`. El archivo activo es
@@ -123,6 +157,18 @@ actual obligatoria, cambios propios y de otra cuenta, claves Unicode largas,
 rotación de CSRF y rechazo de sesiones anteriores. Utilizan cuentas temporales
 en la base local de pruebas; no modifican la contraseña del administrador `qa`.
 
+`tests/export.py` abre los XLSX con un lector independiente y verifica acceso,
+filtros, exportación de más de 25 filas, campos pendientes, cero, caracteres
+especiales, fechas CDMX y texto que podría confundirse con fórmulas. Crea registros
+sintéticos en la misma base local y usa un origen de conexión separado para no
+interferir con los límites de intentos de las otras pruebas.
+
+```bash
+python3 -m venv /tmp/imcyc-test-env
+/tmp/imcyc-test-env/bin/pip install -r tests/requirements.txt
+/tmp/imcyc-test-env/bin/python tests/export.py
+```
+
 ## PDF del kit
 
 `lib/kit-pdf.ts` reproduce la composición de la referencia en una página de
@@ -146,6 +192,21 @@ pdftoppm -png -singlefile output/pdf/kit-continuidad-imcyc.pdf /tmp/kit-preview
 
 El comando crea la muestra `output/pdf/kit-continuidad-imcyc.pdf` y una prueba con
 campos largos en `tmp/pdfs/`. Estos artefactos quedan fuera de Git.
+
+## QR de la encuesta
+
+El QR se guarda en `public/qr-encuesta-satisfaccion.png` y
+`public/qr-encuesta-satisfaccion.svg`. Ambos abren
+`https://grabador.imcyc.com/exp-imcyc/`, donde el participante ingresa sus datos y
+continúa a la encuesta. La imagen incluye margen blanco; conserva ese margen al
+colocarla en materiales impresos. El SVG permite escalarla sin perder definición.
+
+Para regenerarlo con [python-qrcode](https://github.com/lincolnloop/python-qrcode):
+
+```bash
+/tmp/imcyc-test-env/bin/pip install 'qrcode[pil]==8.2'
+/tmp/imcyc-test-env/bin/python scripts/generate-qr.py
+```
 
 Referencias técnicas: [exportación estática de Next.js](https://nextjs.org/docs/app/guides/static-exports),
 [parámetros de sesión PHP](https://www.php.net/manual/en/function.session-set-cookie-params.php)

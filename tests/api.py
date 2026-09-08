@@ -59,20 +59,23 @@ identity = {'name': 'María Ramírez', 'company': 'Laboratorio de prueba', 'emai
 participant.call('registration.save', identity)
 pending = participant.call('registration.current')['registration']
 assert pending['completed_at'] is None and pending['email'] == identity['email']
+assert pending['opinion_consent'] is None and pending['opinion_consent_at'] is None and pending['opinion_consent_text'] is None
 participant.call('registration.save', {**identity, 'company': 'IMCYC - QA'})
 updated = participant.call('registration.current')['registration']
 assert pending['id'] == updated['id'] and updated['company'] == 'IMCYC - QA'
 assert anonymous.call('registration.current')['registration'] is None
 assert anonymous.call('registration.current', query={'id': pending['id']})['registration'] is None
 
-survey = {'service': 'Certificación', 'application': 'Control del concreto y aplicación de normas.', 'clarity': 'Buena', 'serviceRating': 0}
+survey = {'service': 'Certificación', 'application': 'Control del concreto y aplicación de normas.', 'clarity': 'Buena', 'serviceRating': 0, 'opinionConsent': True}
 participant.call('survey.submit', {**survey, 'serviceRating': '0'}, expected=422)
 first = participant.call('survey.submit', survey)
-repeated = participant.call('survey.submit', {**survey, 'serviceRating': 5, 'service': 'Diplomado'})
+repeated = participant.call('survey.submit', {**survey, 'serviceRating': 5, 'service': 'Diplomado', 'opinionConsent': False})
 assert first['code'] == repeated['code'] and first['issuedAt'] == repeated['issuedAt']
 completed = participant.call('registration.current')['registration']
 assert completed['service_rating'] == 0 and completed['service'] == 'Certificación'
 assert completed['application'] == survey['application'] and completed['clarity'] == 'Buena'
+assert completed['opinion_consent'] is True and completed['opinion_consent_at'] == first['issuedAt']
+assert completed['opinion_consent_text'] == 'Autorizo el uso de mi opinión como testimonio'
 participant.call('registration.save', identity, expected=409)
 
 admin = Client()

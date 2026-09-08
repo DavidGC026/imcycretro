@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 const SERVICES = ['Certificación', 'Diplomado', 'Seminario', 'Congreso', 'Lab. Concreto', 'Ensayos Aptitud'];
 const DISCOUNT_TEXT = '10% DE DESCUENTO EN CUALQUIER CONSTANCIA DE APTITUD.';
+const OPINION_CONSENT_TEXT = 'Autorizo el uso de mi opinión como testimonio';
 
 final class HttpError extends RuntimeException
 {
@@ -50,7 +51,11 @@ function validateSurvey(array $body): array
         || !is_int($rating) || $rating < 0 || $rating > 5) {
         throw new HttpError(422, 'Selecciona un servicio y responde todas las preguntas de la encuesta.');
     }
-    return [$service, $application, $clarity, $rating];
+    if (array_key_exists('opinionConsent', $body) && !is_bool($body['opinionConsent'])) {
+        throw new HttpError(422, 'Revisa la autorización para usar tu opinión como testimonio.');
+    }
+    // Un formulario antiguo abierto antes del despliegue puede omitir el campo.
+    return [$service, $application, $clarity, $rating, $body['opinionConsent'] ?? null];
 }
 
 function registrationFilters(array $query): array
@@ -58,7 +63,8 @@ function registrationFilters(array $query): array
     $search = $query['search'] ?? '';
     $status = $query['status'] ?? '';
     $service = $query['service'] ?? '';
-    if (!is_string($search) || strlen($search) > 800 || !is_string($status) || !is_string($service)) {
+    $consent = $query['consent'] ?? '';
+    if (!is_string($search) || strlen($search) > 800 || !is_string($status) || !is_string($service) || !is_string($consent)) {
         throw new HttpError(422, 'Revisa los filtros de búsqueda.');
     }
     $clauses = [];
@@ -76,6 +82,10 @@ function registrationFilters(array $query): array
         $clauses[] = 'service = ?';
         $parameters[] = $service;
     }
+    if ($consent === 'yes') $clauses[] = 'opinion_consent = 1';
+    elseif ($consent === 'no') $clauses[] = 'opinion_consent = 0';
+    elseif ($consent === 'unrecorded') $clauses[] = 'opinion_consent IS NULL';
+    elseif ($consent !== '') throw new HttpError(422, 'Autorización de testimonio no válida.');
     return [$clauses ? ' WHERE ' . implode(' AND ', $clauses) : '', $parameters];
 }
 

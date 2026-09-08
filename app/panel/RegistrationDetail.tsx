@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Download, X } from 'lucide-react'
 import { errorMessage } from '@/lib/api'
 import { displayDate, type Registration } from '@/lib/registration'
+import { OpinionConsent } from './OpinionConsent'
 
 export function RegistrationDetail({ registration, onClose }: { registration: Registration; onClose: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -34,6 +35,12 @@ export function RegistrationDetail({ registration, onClose }: { registration: Re
         ['Correo electrónico', registration.email], ['Empresa', registration.company],
         ['Fecha de alta', displayDate(registration.created_at)], ['Estado', registration.completed_at ? 'Encuesta completa' : 'Solo datos de contacto'],
       ].map(([label, value]) => <div key={label}><dt className="text-xs text-slate-400">{label}</dt><dd className="mt-1 break-words text-sm font-medium">{value}</dd></div>)}</dl>
+      <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950/50 p-5">
+        <h3 className="mb-3 text-sm font-semibold">Uso de la opinión como testimonio</h3>
+        <OpinionConsent consent={registration.opinion_consent} />
+        {registration.opinion_consent_at && <p className="mt-3 text-xs text-slate-400">Decisión registrada el {displayDate(registration.opinion_consent_at)}.</p>}
+        {registration.opinion_consent_text && <p className="mt-2 text-xs leading-5 text-slate-400">Texto presentado: «{registration.opinion_consent_text}».</p>}
+      </div>
       {registration.completed_at ? <div className="space-y-6 pt-6">
         <h3 className="text-lg font-semibold">Respuestas de la encuesta</h3>
         <dl className="space-y-5">

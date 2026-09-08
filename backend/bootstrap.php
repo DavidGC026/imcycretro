@@ -109,8 +109,10 @@ function serializeRegistration(array $row): array
 {
     $row['id'] = (int) $row['id'];
     $row['service_rating'] = $row['service_rating'] === null ? null : (int) $row['service_rating'];
-    foreach (['created_at', 'completed_at'] as $key) {
-        if ($row[$key] !== null) $row[$key] = str_replace(' ', 'T', $row[$key]) . 'Z';
+    $row['opinion_consent'] = isset($row['opinion_consent']) ? (bool) $row['opinion_consent'] : null;
+    $row['opinion_consent_text'] ??= null;
+    foreach (['created_at', 'completed_at', 'opinion_consent_at'] as $key) {
+        $row[$key] = isset($row[$key]) ? str_replace(' ', 'T', $row[$key]) . 'Z' : null;
     }
     return $row;
 }

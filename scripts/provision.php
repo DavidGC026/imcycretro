@@ -34,6 +34,8 @@ $root->exec("CREATE USER IF NOT EXISTS 'exp_imcyc_app'@'localhost' IDENTIFIED BY
 $root->exec("GRANT SELECT, INSERT, UPDATE, DELETE ON exp_imcyc.* TO 'exp_imcyc_app'@'localhost'");
 $root->exec('USE exp_imcyc');
 $root->exec(file_get_contents(dirname(__DIR__) . '/backend/schema.sql'));
+require dirname(__DIR__) . '/backend/migrations.php';
+migrateOpinionConsent($root);
 
 $credentials = is_file($credentialsPath) ? json_decode(file_get_contents($credentialsPath), true, 32, JSON_THROW_ON_ERROR) : [];
 $adminExists = $root->query("SELECT COUNT(*) FROM administrators WHERE username = 'admin'")->fetchColumn();

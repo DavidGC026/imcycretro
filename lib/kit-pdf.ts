@@ -77,15 +77,15 @@ export function createKitPdf(details: KitDetails, assets: KitAssets) {
 
   pdf.setTextColor('#0078AB')
   pdf.setFontSize(14)
-  pdf.text('Haz valido tu cupo:', 288, 609, { align: 'center' })
-  contactLine(pdf, 'WhatsApp de Directo: ', '55 2104 5612', 626, 'https://wa.me/525521045612', true)
+  pdf.text('Haz valido tu kit:', 288, 609, { align: 'center' })
+  contactLine(pdf, 'WhatsApp directo: ', '55 2104 5612', 626, 'https://wa.me/525521045612', true)
   contactLine(pdf, 'Correo Electrónico: ', 'cursos@imcyc.com', 643, 'mailto:cursos@imcyc.com')
 
   pdf.setFont('helvetica', 'bold')
   pdf.setTextColor(GRAY)
   pdf.setFontSize(10)
   pdf.text([
-    'Válido por 14 días naturales a partir de la fecha de emisión | No Transferible | No acumulable con',
+    'Válido 14 días naturales a partir de la fecha de emisión | No Transferible | No acumulable con',
     'otros descuentos, becas o promociones | Descuento aplicable sobre el precio lista antes de IVA',
   ], 288, 666, { align: 'center', lineHeightFactor: 1.15 })
   pdf.setFont('helvetica', 'normal')

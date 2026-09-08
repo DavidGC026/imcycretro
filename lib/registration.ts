@@ -6,6 +6,11 @@ export const serviceGroups = {
 }
 
 export const discountText = '10% DE DESCUENTO EN CUALQUIER CONSTANCIA DE APTITUD.'
+export const opinionConsentText = 'Autorizo el uso de mi opinión como testimonio'
+
+export function opinionConsentLabel(consent: boolean | null) {
+  return consent === true ? 'Autorizó' : consent === false ? 'No autorizó' : 'Sin autorización registrada'
+}
 
 export type Registration = {
   id: number
@@ -19,6 +24,9 @@ export type Registration = {
   unique_code: string | null
   created_at: string
   completed_at: string | null
+  opinion_consent: boolean | null
+  opinion_consent_at: string | null
+  opinion_consent_text: string | null
 }
 
 export type RegistrationResults = {

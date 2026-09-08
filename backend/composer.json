@@ -1,0 +1,13 @@
+{
+    "name": "imcyc/experience-api",
+    "description": "API del registro y panel de la comunidad IMCYC",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.3",
+        "openspout/openspout": "^4.32"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

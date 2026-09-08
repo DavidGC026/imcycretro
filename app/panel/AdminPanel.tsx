@@ -6,6 +6,8 @@ import { api, ApiError, errorMessage, getSession } from '@/lib/api'
 import { assetPath } from '@/lib/paths'
 import { displayDate, serviceGroups, type Registration, type RegistrationResults } from '@/lib/registration'
 import { RegistrationDetail } from './RegistrationDetail'
+import { ExportRegistrations } from './ExportRegistrations'
+import { OpinionConsent } from './OpinionConsent'
 import { UserManagement } from './UserManagement'
 
 export function AdminPanel() {
@@ -95,6 +97,7 @@ function Registrations({ onSessionExpired }: { onSessionExpired: () => void }) {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [service, setService] = useState('')
+  const [consent, setConsent] = useState('')
   const [query, setQuery] = useState('page=1')
   const [revision, setRevision] = useState(0)
   const [results, setResults] = useState<RegistrationResults | null>(null)
@@ -122,7 +125,7 @@ function Registrations({ onSessionExpired }: { onSessionExpired: () => void }) {
 
   function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setQuery(new URLSearchParams({ search: search.trim(), status, service, page: '1' }).toString())
+    setQuery(new URLSearchParams({ search: search.trim(), status, service, consent, page: '1' }).toString())
     setRevision((value) => value + 1)
   }
 
@@ -150,26 +153,29 @@ function Registrations({ onSessionExpired }: { onSessionExpired: () => void }) {
     </dl>
     <section aria-labelledby="list-heading" className="rounded-2xl border border-slate-800 bg-slate-900/50">
       <h2 id="list-heading" className="sr-only">Listado de registros</h2>
-      <form onSubmit={applyFilters} className="grid gap-3 border-b border-slate-800 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(230px,1fr)_190px_190px_auto] lg:items-end lg:p-5">
+      <form onSubmit={applyFilters} className="grid gap-3 border-b border-slate-800 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(200px,1fr)_170px_170px_190px_auto] lg:items-end lg:p-5">
         <div><label className="panel-label" htmlFor="search">Buscar participante</label><input id="search" type="search" className="panel-input" value={search} maxLength={160} onChange={(event) => setSearch(event.target.value)} placeholder="Nombre, correo, empresa o folio" /></div>
         <div><label className="panel-label" htmlFor="status">Estado del registro</label><select id="status" className="panel-input" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Todos los estados</option><option value="pending">Solo datos de contacto</option><option value="completed">Encuesta completa</option></select></div>
         <div><label className="panel-label" htmlFor="filter-service">Servicio</label><select id="filter-service" className="panel-input" value={service} onChange={(event) => setService(event.target.value)}><option value="">Todos los servicios</option>{Object.entries(serviceGroups).map(([group, services]) => <optgroup key={group} label={group}>{services.map((service) => <option key={service}>{service}</option>)}</optgroup>)}</select></div>
+        <div><label className="panel-label" htmlFor="filter-consent">Uso como testimonio</label><select id="filter-consent" className="panel-input" value={consent} onChange={(event) => setConsent(event.target.value)}><option value="">Todas las respuestas</option><option value="yes">Autorizó</option><option value="no">No autorizó</option><option value="unrecorded">Sin autorización registrada</option></select></div>
         <button className="panel-action justify-center" disabled={loading}><Search size={16} aria-hidden="true" /> Buscar</button>
       </form>
+      <ExportRegistrations query={query} disabled={loading || !results?.total} onSessionExpired={onSessionExpired} />
       {error && <p role="alert" className="m-5 text-sm text-red-300">{error}</p>}
       <div aria-busy={loading}>
         {loading ? <p role="status" className="py-20 text-center text-sm text-slate-400">Cargando registros…</p> : results?.registrations.length ? <>
           <div className="hidden overflow-x-auto md:block"><table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-800 bg-slate-950/50 text-xs text-slate-400"><tr>{['Participante', 'Empresa / servicio', 'Estado', 'Fecha de alta', 'Detalle'].map((heading) => <th scope="col" key={heading} className="px-5 py-4 font-medium">{heading}</th>)}</tr></thead>
+            <thead className="border-b border-slate-800 bg-slate-950/50 text-xs text-slate-400"><tr>{['Participante', 'Empresa / servicio', 'Estado', 'Uso como testimonio', 'Fecha de alta', 'Detalle'].map((heading) => <th scope="col" key={heading} className="px-5 py-4 font-medium">{heading}</th>)}</tr></thead>
             <tbody>{results.registrations.map((registration) => <tr key={registration.id} className="border-b border-slate-800/80 last:border-b-0 hover:bg-slate-800/40">
               <td className="max-w-xs px-5 py-5"><p className="break-words font-semibold">{registration.full_name}</p><p className="mt-1 break-all text-xs text-slate-400">{registration.email}</p></td>
               <td className="max-w-56 px-5 py-5"><p className="break-words">{registration.company}</p><p className="mt-1 text-xs text-slate-400">{registration.service || 'Servicio pendiente'}</p></td>
               <td className="px-5 py-5"><RegistrationStatus completed={!!registration.completed_at} /></td>
+              <td className="px-5 py-5"><OpinionConsent consent={registration.opinion_consent} /></td>
               <td className="whitespace-nowrap px-5 py-5 font-mono text-xs text-slate-400">{displayDate(registration.created_at)}</td>
               <td className="px-5 py-5"><button className="panel-detail-button" onClick={() => setSelected(registration)} aria-label={`Ver registro de ${registration.full_name}`}>Ver registro <ArrowRight size={14} aria-hidden="true" /></button></td>
             </tr>)}</tbody>
           </table></div>
-          <ul className="divide-y divide-slate-800 md:hidden">{results.registrations.map((registration) => <li key={registration.id} className="space-y-3 p-5"><div className="flex flex-wrap justify-between gap-2"><RegistrationStatus completed={!!registration.completed_at} /><time className="font-mono text-[11px] text-slate-400">{displayDate(registration.created_at)}</time></div><div><p className="break-words font-semibold">{registration.full_name}</p><p className="mt-1 break-all text-sm text-slate-400">{registration.email}</p><p className="mt-2 break-words text-sm text-slate-300">{registration.company}</p></div><button className="panel-detail-button" onClick={() => setSelected(registration)} aria-label={`Ver registro de ${registration.full_name}`}>Ver registro <ArrowRight size={14} aria-hidden="true" /></button></li>)}</ul>
+          <ul className="divide-y divide-slate-800 md:hidden">{results.registrations.map((registration) => <li key={registration.id} className="space-y-3 p-5"><div className="flex flex-wrap justify-between gap-2"><RegistrationStatus completed={!!registration.completed_at} /><time className="font-mono text-[11px] text-slate-400">{displayDate(registration.created_at)}</time></div><div><p className="break-words font-semibold">{registration.full_name}</p><p className="mt-1 break-all text-sm text-slate-400">{registration.email}</p><p className="mt-2 break-words text-sm text-slate-300">{registration.company}</p></div><div><p className="mb-1 text-xs text-slate-400">Uso como testimonio</p><OpinionConsent consent={registration.opinion_consent} /></div><button className="panel-detail-button" onClick={() => setSelected(registration)} aria-label={`Ver registro de ${registration.full_name}`}>Ver registro <ArrowRight size={14} aria-hidden="true" /></button></li>)}</ul>
         </> : !error && <div className="px-6 py-20 text-center"><p className="font-semibold">{stats?.total ? 'No hay coincidencias con estos filtros' : 'Aún no hay registros'}</p><p className="mt-2 text-sm text-slate-400">{stats?.total ? 'Prueba con otro nombre, estado o servicio.' : 'Los participantes aparecerán aquí en cuanto ingresen sus datos.'}</p></div>}
       </div>
       {results && <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-800 p-5 text-xs text-slate-400"><p aria-live="polite">{results.total} {results.total === 1 ? 'registro' : 'registros'} · Página {results.page} de {pages}</p><div className="flex gap-2"><button className="panel-secondary" disabled={loading || results.page <= 1} onClick={() => changePage(results.page - 1)}><ArrowLeft size={14} aria-hidden="true" /> Anterior</button><button className="panel-secondary" disabled={loading || results.page >= pages} onClick={() => changePage(results.page + 1)}>Siguiente <ArrowRight size={14} aria-hidden="true" /></button></div></footer>}

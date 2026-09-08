@@ -16,7 +16,7 @@ try {
     beginSession();
     $action = $_GET['action'] ?? '';
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-    $getActions = ['session', 'registration.current', 'admin.registrations', 'admin.users'];
+    $getActions = ['session', 'registration.current', 'admin.registrations', 'admin.registrations.export', 'admin.users'];
     $postActions = ['login', 'logout', 'registration.save', 'registration.reset', 'survey.submit', 'admin.users.create', 'admin.users.password'];
     if (!is_string($action) || !in_array($action, array_merge($getActions, $postActions), true)) throw new HttpError(404, 'Ruta no encontrada.');
     $expectedMethod = in_array($action, $getActions, true) ? 'GET' : 'POST';
@@ -32,6 +32,10 @@ try {
     if ($action === 'registration.reset') {
         unset($_SESSION['registration_id']);
         respond(['reset' => true]);
+    }
+    if ($action === 'admin.registrations.export') {
+        require_once __DIR__ . '/registration-export.php';
+        exportRegistrations($_GET);
     }
     respond(match ($action) {
         'session' => sessionStatus(),

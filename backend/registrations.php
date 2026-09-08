@@ -28,7 +28,7 @@ function saveIdentity(array $body): array
 
 function submitSurvey(array $body): array
 {
-    [$service, $application, $clarity, $rating] = validateSurvey($body);
+    [$service, $application, $clarity, $rating, $opinionConsent] = validateSurvey($body);
     if (empty($_SESSION['registration_id'])) throw new HttpError(409, 'Ingresa tus datos antes de responder la encuesta.');
     $connection = database();
     $connection->beginTransaction();
@@ -41,8 +41,11 @@ function submitSurvey(array $body): array
         if ($registration['completed_at'] === null) {
             $registration['unique_code'] = 'IMCYC-' . strtoupper(bin2hex(random_bytes(8)));
             $registration['completed_at'] = gmdate('Y-m-d H:i:s');
-            $statement = $connection->prepare('UPDATE registrations SET service = ?, application = ?, clarity = ?, service_rating = ?, unique_code = ?, discount_text = ?, completed_at = ? WHERE id = ?');
-            $statement->execute([$service, $application, $clarity, $rating, $registration['unique_code'], DISCOUNT_TEXT, $registration['completed_at'], $_SESSION['registration_id']]);
+            $statement = $connection->prepare('UPDATE registrations SET service = ?, application = ?, clarity = ?, service_rating = ?, unique_code = ?, discount_text = ?, completed_at = ?, opinion_consent = ?, opinion_consent_at = ?, opinion_consent_text = ? WHERE id = ?');
+            $statement->execute([$service, $application, $clarity, $rating, $registration['unique_code'], DISCOUNT_TEXT, $registration['completed_at'],
+                $opinionConsent === null ? null : (int) $opinionConsent,
+                $opinionConsent === null ? null : $registration['completed_at'],
+                $opinionConsent === null ? null : OPINION_CONSENT_TEXT, $_SESSION['registration_id']]);
         }
         $connection->commit();
         return ['code' => $registration['unique_code'], 'issuedAt' => str_replace(' ', 'T', $registration['completed_at']) . 'Z'];
@@ -55,7 +58,7 @@ function submitSurvey(array $body): array
 function currentRegistration(): array
 {
     if (empty($_SESSION['registration_id'])) return ['registration' => null];
-    $statement = database()->prepare('SELECT id, full_name, email, company, service, application, clarity, service_rating, unique_code, created_at, completed_at FROM registrations WHERE id = ?');
+    $statement = database()->prepare('SELECT id, full_name, email, company, service, application, clarity, service_rating, unique_code, created_at, completed_at, opinion_consent, opinion_consent_at, opinion_consent_text FROM registrations WHERE id = ?');
     $statement->execute([$_SESSION['registration_id']]);
     $row = $statement->fetch();
     return ['registration' => $row ? serializeRegistration($row) : null];
@@ -74,7 +77,7 @@ function listRegistrations(array $query): array
     $total = (int) $statement->fetchColumn();
     $page = max(1, min((int) $pageValue, max(1, (int) ceil($total / $pageSize))));
     $offset = ($page - 1) * $pageSize;
-    $statement = $connection->prepare('SELECT id, full_name, email, company, service, application, clarity, service_rating, unique_code, created_at, completed_at FROM registrations' . $where . " ORDER BY created_at DESC, id DESC LIMIT $pageSize OFFSET $offset");
+    $statement = $connection->prepare('SELECT id, full_name, email, company, service, application, clarity, service_rating, unique_code, created_at, completed_at, opinion_consent, opinion_consent_at, opinion_consent_text FROM registrations' . $where . " ORDER BY created_at DESC, id DESC LIMIT $pageSize OFFSET $offset");
     $statement->execute($parameters);
     $registrations = array_map('serializeRegistration', $statement->fetchAll());
     $stats = $connection->query('SELECT COUNT(*) AS total, COUNT(completed_at) AS completed, AVG(service_rating) AS average_rating FROM registrations')->fetch();
