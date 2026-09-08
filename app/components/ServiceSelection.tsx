@@ -1,14 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowLeft, CheckCircle2, Download, ExternalLink, Mail, MessageCircle, RotateCcw, Star } from 'lucide-react'
 import { api, errorMessage } from '@/lib/api'
-import { discountText, opinionConsentText, serviceGroups, type Identity, type Registration } from '@/lib/registration'
+import { clarityOptions, discountText, opinionConsentText, serviceGroups, type Identity, type Registration } from '@/lib/registration'
 
 type Props = { user: Identity; registration: Registration | null; onBack: () => void; onReset: () => Promise<void> }
 // Abre el formulario de reseña de la ficha del IMCYC; una búsqueda obligaba a
 // encontrar el negocio antes de poder calificarlo.
 const GOOGLE_REVIEW_URL = 'https://search.google.com/local/writereview?placeid=ChIJ9fKDC_T_0YUR6nS6Hq4CNrs'
+
+function shuffled<T>(values: readonly T[]) {
+  const result = [...values]
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(Math.random() * (index + 1))
+    ;[result[index], result[target]] = [result[target], result[index]]
+  }
+  return result
+}
 
 export function ServiceSelection({ user, registration, onBack, onReset }: Props) {
   const [step, setStep] = useState(registration?.completed_at ? 4 : 2)
@@ -23,6 +32,10 @@ export function ServiceSelection({ user, registration, onBack, onReset }: Props)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  // Se sortea una sola vez al montar: barajar en cada render movería los botones
+  // mientras el participante decide, y el prerender estático no puede aleatorizar.
+  const [clarityChoices, setClarityChoices] = useState(clarityOptions)
+  useEffect(() => setClarityChoices(shuffled(clarityOptions)), [])
 
   async function submitSurvey() {
     if (saving) return
@@ -63,7 +76,7 @@ export function ServiceSelection({ user, registration, onBack, onReset }: Props)
       <fieldset disabled={saving || !!code} className="space-y-5">
         <label className="block text-sm font-semibold text-slate-100" htmlFor="service">Selecciona el servicio que recibiste<select id="service" required value={selectedService} onChange={(event) => setSelectedService(event.target.value)} className="mt-2 w-full rounded-xl border border-cyan-400/50 bg-slate-800 px-4 py-3 text-sm text-slate-100 outline-none focus:border-cyan-300"><option value="">Selecciona una opción</option>{Object.entries(serviceGroups).map(([group, items]) => <optgroup label={group} key={group}>{items.map((service) => <option key={service}>{service}</option>)}</optgroup>)}</select></label>
         <label className="block text-sm font-semibold leading-6 text-slate-100" htmlFor="application">1. ¿De qué manera aplicarás el conocimiento aprendido?<textarea id="application" required maxLength={4000} value={application} onChange={(event) => setApplication(event.target.value)} rows={3} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm font-normal text-slate-100 outline-none focus:border-cyan-400" placeholder="Comparte tu respuesta..." /></label>
-        <fieldset><legend className="mb-3 text-sm font-semibold leading-6 text-slate-100">2. ¿Cómo calificarías la claridad del instructor?</legend><div className="grid grid-cols-3 gap-2">{['Regular', 'Buena', 'Mala'].map((option) => <button type="button" key={option} aria-pressed={clarity === option} onClick={() => setClarity(option)} className={`rounded-xl border px-3 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-cyan-300 ${clarity === option ? 'border-cyan-300 bg-cyan-400/15 text-cyan-200' : 'border-slate-700 text-slate-400'}`}>{option}</button>)}</div></fieldset>
+        <fieldset><legend className="mb-3 text-sm font-semibold leading-6 text-slate-100">2. ¿Cómo calificarías la claridad del instructor?</legend><div className="grid grid-cols-3 gap-2">{clarityChoices.map((option) => <button type="button" key={option} aria-pressed={clarity === option} onClick={() => setClarity(option)} className={`rounded-xl border px-3 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-cyan-300 ${clarity === option ? 'border-cyan-300 bg-cyan-400/15 text-cyan-200' : 'border-slate-700 text-slate-400'}`}>{option}</button>)}</div></fieldset>
         <fieldset><legend className="mb-3 text-sm font-semibold leading-6 text-slate-100">3. Calificación del servicio (0–5)</legend><div className="grid grid-cols-6 gap-2">{[0, 1, 2, 3, 4, 5].map((value) => <button type="button" key={value} aria-pressed={serviceRating === value} onClick={() => setServiceRating(value)} className={`rounded-xl border px-2 py-3 text-sm font-bold focus-visible:outline-2 focus-visible:outline-cyan-300 ${serviceRating === value ? 'border-cyan-300 bg-cyan-400/15 text-cyan-200' : 'border-slate-700 text-slate-400'}`}>{value}</button>)}</div></fieldset>
         <div className="rounded-xl border border-slate-700 bg-slate-800/60 p-4">
           <label htmlFor="opinion-consent" className="flex cursor-pointer items-start gap-3 text-sm leading-6 text-slate-100">

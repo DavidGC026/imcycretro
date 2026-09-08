@@ -7,6 +7,10 @@ export const serviceGroups = {
   'Gerencia Técnica': ['Ensayos Aptitud', 'Lab. Concreto'],
 }
 
+// El formulario las presenta en orden aleatorio; el backend valida contra esta
+// misma lista.
+export const clarityOptions = ['Regular', 'Buena', 'Mala']
+
 export const discountText = '10% DE DESCUENTO EN CUALQUIER CONSTANCIA DE APTITUD.'
 export const opinionConsentText = 'Autorizo el uso de mi opinión como testimonio'
 
