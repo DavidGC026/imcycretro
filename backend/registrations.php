@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/sheet-sync.php';
+
 function saveIdentity(array $body): array
 {
     [$name, $company, $email] = validateIdentity($body);
@@ -48,6 +50,9 @@ function submitSurvey(array $body): array
                 $opinionConsent === null ? null : OPINION_CONSENT_TEXT, $_SESSION['registration_id']]);
         }
         $connection->commit();
+        // La copia en la hoja ocurre con el registro ya guardado: si Google falla,
+        // el participante conserva su folio y scripts/sync-sheet.php lo recupera.
+        pushRegistrationToSheet((int) $_SESSION['registration_id']);
         return ['code' => $registration['unique_code'], 'issuedAt' => str_replace(' ', 'T', $registration['completed_at']) . 'Z'];
     } catch (Throwable $error) {
         if ($connection->inTransaction()) $connection->rollBack();

@@ -169,6 +169,41 @@ python3 -m venv /tmp/imcyc-test-env
 /tmp/imcyc-test-env/bin/python tests/export.py
 ```
 
+## Hoja de cálculo de Google
+
+Cada encuesta completada se copia a una hoja de cálculo mediante un Apps Script
+publicado como aplicación web; `deploy/apps-script-sheet.gs` lleva el código y
+los pasos de instalación. El servidor solo necesita dos claves en
+`/etc/exp-imcyc/config.php`:
+
+```php
+'sheet_webhook_url' => 'https://script.google.com/macros/s/.../exec',
+'sheet_webhook_token' => 'la misma cadena que quedó en el script',
+```
+
+Ambas en blanco desactivan la copia sin afectar el registro. Así no hacen falta
+credenciales de Google en el servidor: el token viaja en el cuerpo del POST y la
+URL vive fuera del build.
+
+La hoja es un espejo, nunca la fuente. El registro se guarda y se confirma al
+participante antes de intentar el envío, de modo que una caída de Google no le
+impide obtener su kit; el fallo queda en el log de Apache. Como Apache atiende
+PHP con `php_module`, el envío ocurre dentro de la petición y le suma su latencia
+—normalmente uno o dos segundos, con un tope de ocho.
+
+Para poblar la hoja por primera vez, o recuperar envíos fallidos:
+
+```bash
+php scripts/sync-sheet.php                    # todos los registros
+php scripts/sync-sheet.php --desde=2026-09-01 # desde esa fecha (CDMX)
+php scripts/sync-sheet.php --solo-completos   # omite quienes no terminaron
+```
+
+El Apps Script identifica cada fila por el ID del registro, así que reenviar
+actualiza en lugar de duplicar y el script puede correr en `cron` como red de
+seguridad. Las columnas de texto se escriben con formato de texto para que una
+respuesta que empiece con `=` no se evalúe como fórmula, igual que en el Excel.
+
 ## PDF del kit
 
 `lib/kit-pdf.ts` reproduce la composición de la referencia en una página de

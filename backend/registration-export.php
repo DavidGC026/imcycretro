@@ -13,6 +13,8 @@ use OpenSpout\Writer\XLSX\Options;
 use OpenSpout\Writer\XLSX\Properties;
 use OpenSpout\Writer\XLSX\Writer;
 
+require_once __DIR__ . '/registration-row.php';
+
 function exportRegistrations(array $query): never
 {
     requireAdmin();
@@ -96,7 +98,7 @@ function registrationExportRow(array $registration): Row
 {
     $values = [
         (string) $registration['id'], $registration['full_name'], $registration['email'], $registration['company'],
-        $registration['completed_at'] ? 'Encuesta completa' : 'Solo datos de contacto',
+        registrationStatusLabel($registration),
         $registration['service'], $registration['application'], $registration['clarity'],
         $registration['service_rating'] === null ? null : (int) $registration['service_rating'],
         $registration['unique_code'],
@@ -108,7 +110,7 @@ function registrationExportRow(array $registration): Row
         $cells[] = registrationDateCell($registration[$field], $dateStyle);
     }
     $consent = $registration['opinion_consent'];
-    $cells[] = new StringCell($consent === null ? 'Sin autorización registrada' : ((bool) $consent ? 'Autorizó' : 'No autorizó'), null);
+    $cells[] = new StringCell(registrationConsentLabel($consent === null ? null : (int) $consent), null);
     $cells[] = registrationDateCell($registration['opinion_consent_at'], $dateStyle);
     $cells[] = $registration['opinion_consent_text'] === null ? Cell::fromValue(null) : new StringCell($registration['opinion_consent_text'], null);
     return new Row($cells);

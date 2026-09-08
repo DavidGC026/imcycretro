@@ -10,4 +10,7 @@ return [
     'cookie_secure' => true,
     'session_path' => '/var/lib/exp-imcyc/sessions',
     'rate_limit_secret' => 'GENERAR_CON_RANDOM_BYTES_32',
+    // Copia en Google Sheets; en blanco desactiva el envío sin afectar el registro.
+    'sheet_webhook_url' => '',
+    'sheet_webhook_token' => '',
 ];
