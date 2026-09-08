@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, CheckCircle2, Download, ExternalLink, RotateCcw, Star } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Download, ExternalLink, Mail, MessageCircle, RotateCcw, Star } from 'lucide-react'
 import { api, errorMessage } from '@/lib/api'
 import { discountText, opinionConsentText, serviceGroups, type Identity, type Registration } from '@/lib/registration'
 
@@ -80,8 +80,9 @@ export function ServiceSelection({ user, registration, onBack, onReset }: Props)
       <button type="button" disabled={!reviewDone} onClick={() => setStep(4)} className="w-full rounded-xl bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 disabled:opacity-40">Continuar al kit</button>
     </div>}
     {step === 4 && <div className="space-y-5">
-      <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-5"><p className="text-sm font-semibold text-emerald-200">Kit aprobado</p><p className="mt-2 text-lg font-bold text-slate-50">{discountText}</p><p className="mt-3 break-words text-xs text-slate-300">Tu ID único: <span className="font-mono text-cyan-300">{code}</span></p><p className="mt-3 text-xs leading-5 text-slate-400">Válido 14 días naturales a partir de la fecha de emisión. No transferible. No acumulable con otros descuentos, becas o promociones. Descuento aplicable sobre el precio lista antes de IVA.</p></div>
+      <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-5"><p className="text-sm font-semibold text-emerald-200">Kit aprobado</p><p className="mt-2 text-lg font-bold text-slate-50">{discountText}</p><p className="mt-3 break-words text-xs text-slate-300">Tu ID único: <span className="font-mono text-cyan-300">{code}</span></p><p className="mt-3 text-xs leading-5 text-slate-400">Válido 30 días naturales a partir de la fecha de emisión. No transferible. No acumulable con otros descuentos, becas o promociones. Descuento aplicable sobre el precio lista antes de IVA.</p></div>
       <button type="button" onClick={downloadPdf} disabled={downloading} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 disabled:opacity-50"><Download className="h-4 w-4" aria-hidden="true" />{downloading ? 'Generando PDF…' : 'Descargar kit en PDF'}</button>
+      <div className="rounded-2xl border border-slate-700 bg-slate-800/60 p-5"><p className="text-sm font-semibold text-slate-100">Haz válido tu kit:</p><ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300"><li className="flex flex-wrap items-center gap-x-2 gap-y-1"><MessageCircle className="h-4 w-4 shrink-0 text-cyan-300" aria-hidden="true" /><span className="font-semibold text-slate-200">WhatsApp Directo:</span><a href="https://wa.me/525521045612" target="_blank" rel="noreferrer" className="break-all font-mono text-cyan-300 underline">55 2104 5612</a></li><li className="flex flex-wrap items-center gap-x-2 gap-y-1"><Mail className="h-4 w-4 shrink-0 text-cyan-300" aria-hidden="true" /><span className="font-semibold text-slate-200">Correo Electrónico:</span><a href="mailto:cursos@imcyc.com" className="break-all text-cyan-300 underline">cursos@imcyc.com</a></li></ul></div>
     </div>}
     <div className="flex items-center justify-between border-t border-slate-700/70 pt-5">
       <button type="button" disabled={saving || (step === 2 && !!code)} onClick={step === 2 ? onBack : () => setStep(step - 1)} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 disabled:opacity-40"><ArrowLeft className="h-4 w-4" aria-hidden="true" /> Volver</button>

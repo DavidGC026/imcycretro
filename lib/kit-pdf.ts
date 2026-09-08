@@ -85,7 +85,7 @@ export function createKitPdf(details: KitDetails, assets: KitAssets) {
   pdf.setTextColor(GRAY)
   pdf.setFontSize(10)
   pdf.text([
-    'Válido 14 días naturales a partir de la fecha de emisión | No Transferible | No acumulable con',
+    'Válido 30 días naturales a partir de la fecha de emisión | No Transferible | No acumulable con',
     'otros descuentos, becas o promociones | Descuento aplicable sobre el precio lista antes de IVA',
   ], 288, 666, { align: 'center', lineHeightFactor: 1.15 })
   pdf.setFont('helvetica', 'normal')

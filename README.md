@@ -179,9 +179,12 @@ base, en horario de Ciudad de México; descargar de nuevo no renueva la vigencia
 Los nombres largos ajustan su tamaño y pueden ocupar varias líneas.
 
 El footer incluye el WhatsApp **55 2104 5612** y el correo **cursos@imcyc.com**, con
-enlaces de contacto. Las condiciones de la referencia especifican 14 días
+enlaces de contacto. Las condiciones de la referencia especifican 30 días
 naturales desde la emisión, beneficio no transferible, no acumulable con otros
 descuentos, becas o promociones y descuento sobre el precio lista antes de IVA.
+
+La pantalla del kit repite esos mismos contactos bajo el botón de descarga, para
+que quien no abra el PDF de inmediato sepa cómo hacerlo válido.
 
 Poppins se sirve localmente bajo la licencia OFL de `public/fonts/OFL.txt`.
 
