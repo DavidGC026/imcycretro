@@ -7,6 +7,7 @@ import { assetPath } from '@/lib/paths'
 import { displayDate, serviceGroups, type Registration, type RegistrationResults } from '@/lib/registration'
 import { RegistrationDetail } from './RegistrationDetail'
 import { ExportRegistrations } from './ExportRegistrations'
+import { ReloadSheet } from './ReloadSheet'
 import { OpinionConsent } from './OpinionConsent'
 import { UserManagement } from './UserManagement'
 
@@ -104,6 +105,7 @@ function Registrations({ onSessionExpired }: { onSessionExpired: () => void }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<Registration | null>(null)
+  const [notice, setNotice] = useState('')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -161,6 +163,8 @@ function Registrations({ onSessionExpired }: { onSessionExpired: () => void }) {
         <button className="panel-action justify-center" disabled={loading}><Search size={16} aria-hidden="true" /> Buscar</button>
       </form>
       <ExportRegistrations query={query} disabled={loading || !results?.total} onSessionExpired={onSessionExpired} />
+      <ReloadSheet onSessionExpired={onSessionExpired} />
+      {notice && <p role="status" className="m-5 rounded-xl border border-emerald-400/25 bg-emerald-400/10 p-4 text-sm leading-6 text-emerald-100">{notice}</p>}
       {error && <p role="alert" className="m-5 text-sm text-red-300">{error}</p>}
       <div aria-busy={loading}>
         {loading ? <p role="status" className="py-20 text-center text-sm text-slate-400">Cargando registros…</p> : results?.registrations.length ? <>
@@ -181,7 +185,12 @@ function Registrations({ onSessionExpired }: { onSessionExpired: () => void }) {
       {results && <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-800 p-5 text-xs text-slate-400"><p aria-live="polite">{results.total} {results.total === 1 ? 'registro' : 'registros'} · Página {results.page} de {pages}</p><div className="flex gap-2"><button className="panel-secondary" disabled={loading || results.page <= 1} onClick={() => changePage(results.page - 1)}><ArrowLeft size={14} aria-hidden="true" /> Anterior</button><button className="panel-secondary" disabled={loading || results.page >= pages} onClick={() => changePage(results.page + 1)}>Siguiente <ArrowRight size={14} aria-hidden="true" /></button></div></footer>}
     </section>
     <p className="mt-5 text-xs text-slate-400">Las fechas se muestran en horario de Ciudad de México. Los indicadores incluyen todos los registros.</p>
-    {selected && <RegistrationDetail registration={selected} onClose={() => setSelected(null)} />}
+    {selected && <RegistrationDetail
+      registration={selected}
+      onClose={() => setSelected(null)}
+      onSessionExpired={onSessionExpired}
+      onDeleted={(message) => { setSelected(null); setNotice(message); setRevision((value) => value + 1) }}
+    />}
   </>
 }
 

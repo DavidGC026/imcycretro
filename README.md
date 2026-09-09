@@ -191,12 +191,20 @@ impide obtener su kit; el fallo queda en el log de Apache. Como Apache atiende
 PHP con `php_module`, el envío ocurre dentro de la petición y le suma su latencia
 —normalmente uno o dos segundos, con un tope de ocho.
 
-Para poblar la hoja por primera vez, o recuperar envíos fallidos:
+Desde el panel, **Recargar hoja** reescribe la hoja con todos los registros
+actuales, y el botón **Eliminar participante** del detalle borra a la persona de
+la base y quita su fila. Si la hoja no responde al borrar, el registro se elimina
+igual —la base manda— y el panel avisa que la fila quedó huérfana hasta la
+siguiente recarga.
+
+Las mismas operaciones desde la consola, para poblar la hoja por primera vez o
+recuperar envíos fallidos:
 
 ```bash
 php scripts/sync-sheet.php                    # todos los registros
 php scripts/sync-sheet.php --desde=2026-09-01 # desde esa fecha (CDMX)
 php scripts/sync-sheet.php --solo-completos   # omite quienes no terminaron
+php scripts/sync-sheet.php --reemplazar       # deja la hoja con exactamente estos
 ```
 
 El Apps Script identifica cada fila por el ID del registro, así que reenviar

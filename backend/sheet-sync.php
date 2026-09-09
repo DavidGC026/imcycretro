@@ -12,8 +12,12 @@ require_once __DIR__ . '/registration-row.php';
 // fila por el ID del registro, de modo que reenviar actualiza en lugar de
 // duplicar y `scripts/sync-sheet.php` puede recuperar lo que se haya perdido.
 
+const SHEET_COLUMNS = 'id, full_name, email, company, service, application, clarity, service_rating, unique_code, created_at, completed_at, opinion_consent, opinion_consent_at, opinion_consent_text';
 const SHEET_CONNECT_TIMEOUT = 4;
+// El envío de una encuesta ocurre dentro de la petición del participante, así que
+// se corta pronto. Las operaciones del panel pueden esperar bastante más.
 const SHEET_TOTAL_TIMEOUT = 8;
+const SHEET_ADMIN_TIMEOUT = 60;
 
 function sheetSyncSettings(): ?array
 {
@@ -46,18 +50,31 @@ function sheetRegistrationPayload(array $registration): array
 }
 
 /**
- * Envía un lote de registros. Devuelve cuántas filas confirmó la hoja y lanza
- * RuntimeException si el envío no se pudo completar.
+ * Envía un lote de registros. Con $replace la hoja queda con exactamente estas
+ * filas, útil para recargarla completa. Devuelve cuántas filas confirmó la hoja
+ * y lanza RuntimeException si el envío no se pudo completar.
  */
-function sendRegistrationsToSheet(array $registrations): int
+function sendRegistrationsToSheet(array $registrations, bool $replace = false, int $timeout = SHEET_TOTAL_TIMEOUT): int
+{
+    $payload = ['registros' => array_map('sheetRegistrationPayload', $registrations)];
+    if ($replace) $payload['reemplazar'] = true;
+    return postToSheet($payload, count($registrations), $timeout);
+}
+
+/**
+ * Quita de la hoja las filas de esos registros. Devuelve cuántas encontró.
+ */
+function deleteRegistrationsFromSheet(array $ids): int
+{
+    return postToSheet(['borrar' => array_values(array_map('intval', $ids))], 0, SHEET_ADMIN_TIMEOUT);
+}
+
+function postToSheet(array $payload, int $expected, int $timeout = SHEET_TOTAL_TIMEOUT): int
 {
     $settings = sheetSyncSettings();
     if ($settings === null) throw new RuntimeException('Sheet webhook is not configured.');
     [$url, $token] = $settings;
-    $body = json_encode(
-        ['token' => $token, 'registros' => array_map('sheetRegistrationPayload', $registrations)],
-        JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
-    );
+    $body = json_encode(['token' => $token] + $payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 
     $request = curl_init($url);
     curl_setopt_array($request, [
@@ -69,7 +86,7 @@ function sendRegistrationsToSheet(array $registrations): int
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_MAXREDIRS => 3,
         CURLOPT_CONNECTTIMEOUT => SHEET_CONNECT_TIMEOUT,
-        CURLOPT_TIMEOUT => SHEET_TOTAL_TIMEOUT,
+        CURLOPT_TIMEOUT => $timeout,
     ]);
     $response = curl_exec($request);
     $status = curl_getinfo($request, CURLINFO_RESPONSE_CODE);
@@ -82,7 +99,7 @@ function sendRegistrationsToSheet(array $registrations): int
     if (!is_array($result) || ($result['ok'] ?? false) !== true) {
         throw new RuntimeException('Sheet rejected the payload: ' . substr((string) $response, 0, 200));
     }
-    return (int) ($result['filas'] ?? count($registrations));
+    return (int) ($result['filas'] ?? $expected);
 }
 
 /**
@@ -93,11 +110,38 @@ function pushRegistrationToSheet(int $registrationId): void
 {
     if (sheetSyncSettings() === null) return;
     try {
-        $statement = database()->prepare('SELECT id, full_name, email, company, service, application, clarity, service_rating, unique_code, created_at, completed_at, opinion_consent, opinion_consent_at, opinion_consent_text FROM registrations WHERE id = ?');
+        $statement = database()->prepare('SELECT ' . SHEET_COLUMNS . ' FROM registrations WHERE id = ?');
         $statement->execute([$registrationId]);
         $registration = $statement->fetch();
         if ($registration) sendRegistrationsToSheet([$registration]);
     } catch (Throwable $error) {
         error_log('EXP IMCYC hoja: registro ' . $registrationId . ': ' . $error->getMessage());
+    }
+}
+
+/**
+ * Deja la hoja con exactamente los registros que hay en la base. Devuelve
+ * cuántas filas se escribieron.
+ */
+function reloadSheet(): int
+{
+    $registrations = database()->query('SELECT ' . SHEET_COLUMNS . ' FROM registrations ORDER BY id')->fetchAll();
+    return sendRegistrationsToSheet($registrations, true, SHEET_ADMIN_TIMEOUT);
+}
+
+/**
+ * Quita de la hoja un registro que ya no está en la base. Devuelve false si la
+ * hoja no se pudo actualizar: el registro ya se borró y la fila queda huérfana
+ * hasta la siguiente recarga.
+ */
+function removeRegistrationFromSheet(int $registrationId): bool
+{
+    if (sheetSyncSettings() === null) return true;
+    try {
+        deleteRegistrationsFromSheet([$registrationId]);
+        return true;
+    } catch (Throwable $error) {
+        error_log('EXP IMCYC hoja: no se pudo borrar el registro ' . $registrationId . ': ' . $error->getMessage());
+        return false;
     }
 }

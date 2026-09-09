@@ -17,7 +17,7 @@ try {
     $action = $_GET['action'] ?? '';
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     $getActions = ['session', 'registration.current', 'admin.registrations', 'admin.registrations.export', 'admin.users'];
-    $postActions = ['login', 'logout', 'registration.save', 'registration.reset', 'survey.submit', 'admin.users.create', 'admin.users.password'];
+    $postActions = ['login', 'logout', 'registration.save', 'registration.reset', 'survey.submit', 'admin.users.create', 'admin.users.password', 'admin.registrations.delete', 'admin.sheet.reload'];
     if (!is_string($action) || !in_array($action, array_merge($getActions, $postActions), true)) throw new HttpError(404, 'Ruta no encontrada.');
     $expectedMethod = in_array($action, $getActions, true) ? 'GET' : 'POST';
     if ($method !== $expectedMethod) {
@@ -48,6 +48,8 @@ try {
         'admin.users' => listAdministrators(),
         'admin.users.create' => createAdministrator($body),
         'admin.users.password' => changeAdministratorPassword($body),
+        'admin.registrations.delete' => deleteRegistration($body),
+        'admin.sheet.reload' => reloadRegistrationsSheet(),
     });
 } catch (HttpError $error) {
     respond(['error' => $error->getMessage()], $error->status);

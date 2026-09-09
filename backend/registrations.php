@@ -60,6 +60,39 @@ function submitSurvey(array $body): array
     }
 }
 
+/**
+ * Borra un registro desde el panel y quita su fila de la hoja. La base manda:
+ * si la hoja no responde, el registro se borra igual y queda una fila huérfana
+ * que la recarga completa limpia.
+ */
+function deleteRegistration(array $body): array
+{
+    requireAdmin();
+    $id = $body['id'] ?? null;
+    if (!is_int($id) || $id < 1) throw new HttpError(422, 'Registro no válido.');
+    $connection = database();
+    $statement = $connection->prepare('SELECT full_name FROM registrations WHERE id = ?');
+    $statement->execute([$id]);
+    $registration = $statement->fetch();
+    if (!$registration) throw new HttpError(404, 'Ese registro ya no existe.');
+
+    $statement = $connection->prepare('DELETE FROM registrations WHERE id = ?');
+    $statement->execute([$id]);
+    return ['deleted' => true, 'name' => $registration['full_name'], 'sheetUpdated' => removeRegistrationFromSheet($id)];
+}
+
+function reloadRegistrationsSheet(): array
+{
+    requireAdmin();
+    if (sheetSyncSettings() === null) throw new HttpError(409, 'La hoja de cálculo no está configurada en este servidor.');
+    try {
+        return ['rows' => reloadSheet()];
+    } catch (Throwable $error) {
+        error_log('EXP IMCYC hoja: recarga desde el panel: ' . $error->getMessage());
+        throw new HttpError(502, 'No pudimos actualizar la hoja de cálculo. Intenta nuevamente.');
+    }
+}
+
 function currentRegistration(): array
 {
     if (empty($_SESSION['registration_id'])) return ['registration' => null];

@@ -1,14 +1,23 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Download, X } from 'lucide-react'
-import { errorMessage } from '@/lib/api'
+import { AlertTriangle, Download, Trash2, X } from 'lucide-react'
+import { api, ApiError, errorMessage } from '@/lib/api'
 import { displayDate, type Registration } from '@/lib/registration'
 import { OpinionConsent } from './OpinionConsent'
 
-export function RegistrationDetail({ registration, onClose }: { registration: Registration; onClose: () => void }) {
+type Props = {
+  registration: Registration
+  onClose: () => void
+  onDeleted: (notice: string) => void
+  onSessionExpired: () => void
+}
+
+export function RegistrationDetail({ registration, onClose, onDeleted, onSessionExpired }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [downloading, setDownloading] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -26,6 +35,22 @@ export function RegistrationDetail({ registration, onClose }: { registration: Re
       await downloadKit({ name: registration.full_name, company: registration.company, service: registration.service!, code: registration.unique_code, issuedAt: registration.completed_at })
     } catch (error) { setError(errorMessage(error)) }
     finally { setDownloading(false) }
+  }
+
+  async function remove() {
+    if (deleting) return
+    setDeleting(true)
+    setError('')
+    try {
+      const result = await api<{ name: string; sheetUpdated: boolean }>('admin.registrations.delete', { body: { id: registration.id } })
+      onDeleted(result.sheetUpdated
+        ? `Se eliminó el registro de ${result.name}.`
+        : `Se eliminó el registro de ${result.name}, pero su fila sigue en la hoja de cálculo: usa «Recargar hoja» para limpiarla.`)
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) onSessionExpired()
+      else setError(errorMessage(error))
+      setDeleting(false)
+    }
   }
 
   return <dialog ref={dialogRef} aria-labelledby="detail-title" onCancel={(event) => { event.preventDefault(); onClose() }} onClick={(event) => { if (event.target === dialogRef.current) onClose() }} className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-0 text-slate-100 shadow-2xl backdrop:bg-black/70">
@@ -50,6 +75,20 @@ export function RegistrationDetail({ registration, onClose }: { registration: Re
         </dl>
         <div className="rounded-xl border border-cyan-400/30 bg-cyan-400/5 p-5"><p className="text-xs text-slate-400">Kit de continuidad · Emitido el {displayDate(registration.completed_at)}</p><p className="mt-2 break-all font-mono text-sm font-semibold text-cyan-200">{registration.unique_code}</p><button className="panel-secondary mt-4" onClick={download} disabled={downloading}><Download size={15} aria-hidden="true" />{downloading ? 'Generando PDF…' : 'Descargar kit'}</button>{error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}</div>
       </div> : <p className="mt-6 rounded-xl border border-amber-300/20 bg-amber-300/5 p-5 text-sm leading-6 text-amber-100">El participante ingresó sus datos de contacto y todavía no ha enviado la encuesta.</p>}
+      <div className="mt-8 rounded-xl border border-red-400/25 bg-red-400/5 p-5">
+        <h3 className="text-sm font-semibold text-red-200">Eliminar participante</h3>
+        <p className="mt-2 text-xs leading-5 text-slate-400">Borra al participante de la base y quita su fila de la hoja de cálculo. No se puede deshacer.</p>
+        {confirming
+          ? <div className="mt-4 space-y-3">
+            <p className="flex items-start gap-2 text-sm leading-6 text-red-100"><AlertTriangle size={16} className="mt-1 shrink-0" aria-hidden="true" />¿Eliminar a {registration.full_name}{registration.unique_code ? ` y su kit ${registration.unique_code}` : ''}?</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="panel-danger" onClick={remove} disabled={deleting}><Trash2 size={15} aria-hidden="true" />{deleting ? 'Eliminando…' : 'Sí, eliminar'}</button>
+              <button type="button" className="panel-secondary" onClick={() => setConfirming(false)} disabled={deleting}>Cancelar</button>
+            </div>
+          </div>
+          : <button type="button" className="panel-secondary mt-4" onClick={() => setConfirming(true)}><Trash2 size={15} aria-hidden="true" /> Eliminar registro</button>}
+        {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
+      </div>
     </div>
   </dialog>
 }
