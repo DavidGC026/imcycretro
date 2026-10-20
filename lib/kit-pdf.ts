@@ -51,8 +51,8 @@ export function createKitPdf(details: KitDetails, assets: KitAssets) {
   roundedCard(pdf, 52, 192, 472, 119, 20, '#008ABD')
   pdf.setFont('helvetica', 'bold')
   pdf.setTextColor(BLUE)
-  centeredBlock(pdf, benefit.benefit, 288, 236, 438, 36, 12, 2)
-  centeredBlock(pdf, benefit.description, 288, 279, 438, 17, 8, 3)
+  centeredBlock(pdf, benefit.benefit, 288, 207, 438, 53, 36, 10)
+  centeredBlock(pdf, benefit.description, 288, 270, 438, 29, 17, 7)
 
   roundedCard(pdf, 52, 329, 472, 157, 27, '#E0E2E4')
   const issueDate = new Intl.DateTimeFormat('es-MX', {
@@ -88,13 +88,14 @@ export function createKitPdf(details: KitDetails, assets: KitAssets) {
   pdf.text('Haz válido tu kit:', 288, 609, { align: 'center' })
   const digits = benefit.whatsapp.replace(/\D/g, '')
   contactLine(pdf, 'WhatsApp directo: ', benefit.whatsapp, 626, `https://wa.me/${digits.length === 10 ? '52' : ''}${digits}`, true)
-  contactLine(pdf, 'Correo Electrónico: ', benefit.email, 643, `mailto:${benefit.email}`)
+  const contactBottom = contactLine(pdf, 'Correo Electrónico: ', benefit.email, 643, `mailto:${benefit.email}`)
 
   pdf.setFont('helvetica', 'bold')
   pdf.setTextColor(GRAY)
   pdf.setFontSize(10)
   const conditions = `Válido ${benefit.validityDays} ${benefit.validityDays === 1 ? 'día natural' : 'días naturales'} a partir de la fecha de emisión. ${benefit.conditions}`
-  centeredBlock(pdf, conditions, 288, 674, 482, 10, 6, 5)
+  const conditionsTop = Math.max(654, contactBottom + 8)
+  centeredBlock(pdf, conditions, 288, conditionsTop, 482, 692 - conditionsTop, 10, 5.5)
   pdf.setFont('helvetica', 'normal')
   pdf.setTextColor('#83888C')
   pdf.setFontSize(9)
@@ -109,7 +110,14 @@ export function createKitPdf(details: KitDetails, assets: KitAssets) {
 
 function contactLine(pdf: jsPDF, label: string, value: string, y: number, url: string, underline = false) {
   pdf.setFontSize(10)
-  while (pdf.getTextWidth(label + value) > 480 && pdf.getFontSize() > 6.5) pdf.setFontSize(pdf.getFontSize() - 0.25)
+  while (pdf.getTextWidth(label + value) > 480 && pdf.getFontSize() > 8) pdf.setFontSize(pdf.getFontSize() - 0.25)
+  if (pdf.getTextWidth(label + value) > 480) {
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(7.5)
+    const lines = pdf.splitTextToSize(label + value, 480) as string[]
+    lines.forEach((line, index) => pdf.textWithLink(line, 288 - pdf.getTextWidth(line) / 2, y + index * 8.625, { url }))
+    return y + (lines.length - 1) * 8.625
+  }
   pdf.setFont('helvetica', 'bold')
   const labelWidth = pdf.getTextWidth(label)
   pdf.setFont('helvetica', 'normal')
@@ -124,6 +132,7 @@ function contactLine(pdf: jsPDF, label: string, value: string, y: number, url: s
     pdf.setLineWidth(0.5)
     pdf.line(x + labelWidth, y + 1.2, x + labelWidth + valueWidth, y + 1.2)
   }
+  return y
 }
 
 function centeredText(pdf: jsPDF, text: string, x: number, y: number, width: number, size: number, minimum: number) {
@@ -132,14 +141,17 @@ function centeredText(pdf: jsPDF, text: string, x: number, y: number, width: num
   pdf.text(text, x, y, { align: 'center' })
 }
 
-function centeredBlock(pdf: jsPDF, text: string, x: number, center: number, width: number, size: number, minimum: number, maxLines: number) {
+function centeredBlock(pdf: jsPDF, text: string, x: number, top: number, width: number, height: number, size: number, minimum: number) {
+  if (!text.trim()) return
   pdf.setFontSize(size)
   let lines = pdf.splitTextToSize(text, width) as string[]
-  while (lines.length > maxLines && size > minimum) {
+  // Fit the entire paragraph into its own rectangle, including line spacing.
+  // A line-count limit alone allows a large heading to collide with its subtitle.
+  while (lines.length * size * 1.15 > height && size > minimum) {
     size -= 0.25; pdf.setFontSize(size); lines = pdf.splitTextToSize(text, width) as string[]
   }
-  const height = size * 1.15
-  pdf.text(lines, x, center - (lines.length - 1) * height / 2, { align: 'center', lineHeightFactor: 1.15 })
+  const offset = Math.max(0, (height - lines.length * size * 1.15) / 2)
+  pdf.text(lines, x, top + offset, { align: 'center', baseline: 'top', lineHeightFactor: 1.15 })
 }
 
 function roundedCard(pdf: jsPDF, x: number, y: number, width: number, height: number, radius: number, border: string) {

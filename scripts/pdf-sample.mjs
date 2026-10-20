@@ -20,3 +20,18 @@ await writeFile('tmp/pdfs/kit-nombres-largos.pdf', new Uint8Array(createKitPdf({
   company: 'Instituto de Investigación y Desarrollo del Cemento y del Concreto, Construcciones y Asociados '.repeat(3).slice(0, 200),
 }, assets).output('arraybuffer')))
 console.log('PDF de referencia y prueba con nombres extensos generados.')
+
+await writeFile('tmp/pdfs/kit-beneficio-extenso.pdf', new Uint8Array(createKitPdf({
+  ...details,
+  name: 'María Fernanda de los Ángeles Hernández González '.repeat(3).slice(0, 160),
+  company: 'Instituto de Investigación y Desarrollo del Cemento y del Concreto, Construcciones y Asociados '.repeat(3).slice(0, 200),
+  benefit: {
+    ...originalKitBenefit,
+    title: 'BENEFICIO EXCLUSIVO PARA LA COMUNIDAD IMCYC',
+    benefit: 'UNA PUBLICACIÓN DIGITAL Y ACCESO A UNA SESIÓN TÉCNICA EXCLUSIVA',
+    description: 'Recibe material técnico especializado para aplicar el conocimiento del concreto en tu trabajo y continuar con tu desarrollo profesional.',
+    conditions: 'Beneficio personal sujeto a disponibilidad. Solicitar por correo y presentar el folio al registrarse. No se acumula con otras promociones. '.repeat(3).slice(0, 360),
+    validityDays: 365,
+    email: 'coordinacion-de-capacitacion-y-desarrollo-profesional@example.test',
+  },
+}, assets).output('arraybuffer')))
