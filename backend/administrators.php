@@ -13,13 +13,21 @@ function confirmAdministratorPassword(array $admin, array $body): void
 function listAdministrators(): array
 {
     $current = requireAdmin();
+    $users = administratorList();
+    foreach ($users as &$user) $user['isCurrent'] = $user['id'] === (int) $current['id'];
+    unset($user);
+    return ['users' => $users];
+}
+
+function administratorList(): array
+{
     $rows = database()->query('SELECT id, username, created_at FROM administrators ORDER BY username, id')->fetchAll();
     $users = array_map(static fn(array $row): array => [
         'id' => (int) $row['id'], 'username' => $row['username'],
         'created_at' => str_replace(' ', 'T', $row['created_at']) . 'Z',
-        'isCurrent' => (int) $row['id'] === (int) $current['id'],
+        'isCurrent' => false,
     ], $rows);
-    return ['users' => $users];
+    return $users;
 }
 
 function createAdministrator(array $body): array
@@ -28,6 +36,11 @@ function createAdministrator(array $body): array
     $username = validateAdministratorUsername($body);
     $password = validateNewPassword($body);
     confirmAdministratorPassword($admin, $body);
+    return insertAdministrator($username, $password);
+}
+
+function insertAdministrator(string $username, string $password): array
+{
     $hash = password_hash($password, PASSWORD_ARGON2ID);
     try {
         $statement = database()->prepare('INSERT INTO administrators (username, password_hash) VALUES (?, ?)');
@@ -46,6 +59,18 @@ function changeAdministratorPassword(array $body): array
     if (!is_int($id) || $id <= 0) throw new HttpError(422, 'Selecciona un usuario válido.');
     $password = validateNewPassword($body);
     confirmAdministratorPassword($admin, $body);
+    $updated = replaceAdministratorPassword($id, $password);
+    if ($id === (int) $admin['id']) {
+        session_regenerate_id(true);
+        $_SESSION['csrf'] = bin2hex(random_bytes(32));
+        $_SESSION['admin_signature'] = hash('sha256', $updated['passwordHash']);
+    }
+    return ['changed' => true, 'csrf' => $_SESSION['csrf'], 'username' => $updated['username']];
+}
+
+/** Internal credential result; never serialize this return value into an API response. */
+function replaceAdministratorPassword(int $id, string $password): array
+{
     $connection = database();
     $statement = $connection->prepare('SELECT id, username, password_hash FROM administrators WHERE id = ?');
     $statement->execute([$id]);
@@ -57,10 +82,5 @@ function changeAdministratorPassword(array $body): array
     $statement->execute([$hash, $id, $target['password_hash']]);
     if ($statement->rowCount() !== 1) throw new HttpError(409, 'La contraseña cambió durante esta operación. Intenta nuevamente.');
 
-    if ($id === (int) $admin['id']) {
-        session_regenerate_id(true);
-        $_SESSION['csrf'] = bin2hex(random_bytes(32));
-        $_SESSION['admin_signature'] = hash('sha256', $hash);
-    }
-    return ['changed' => true, 'csrf' => $_SESSION['csrf'], 'username' => $target['username']];
+    return ['username' => $target['username'], 'passwordHash' => $hash];
 }

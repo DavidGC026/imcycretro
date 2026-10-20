@@ -18,9 +18,14 @@ require_once __DIR__ . '/registration-row.php';
 function exportRegistrations(array $query): never
 {
     requireAdmin();
+    exportRegistrationData($query);
+}
+
+function exportRegistrationData(array $query): never
+{
     [$where, $parameters] = registrationFilters($query);
     require_once __DIR__ . '/vendor/autoload.php';
-    session_write_close();
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
 
     // Los archivos con datos personales viven en un directorio privado y se eliminan al terminar.
     $directory = config()['session_path'] . '/export-' . bin2hex(random_bytes(16));

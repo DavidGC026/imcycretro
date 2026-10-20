@@ -7,6 +7,10 @@ if ($path === '/exp-imcyc') {
     return true;
 }
 if (str_starts_with($path, '/exp-imcyc/')) $path = substr($path, strlen('/exp-imcyc'));
+if ($path === '/api/cms.php') {
+    require dirname(__DIR__) . '/public/api/cms.php';
+    return true;
+}
 if ($path === '/api/index.php') {
     require dirname(__DIR__) . '/backend/api.php';
     return true;

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, CheckCircle2, Download, ExternalLink, Mail, MessageCircle, RotateCcw, Star } from 'lucide-react'
 import { api, errorMessage } from '@/lib/api'
-import { clarityOptions, discountText, opinionConsentText, serviceGroups, type Identity, type Registration } from '@/lib/registration'
+import { clarityOptions, opinionConsentText, serviceGroups, type Identity, type Registration } from '@/lib/registration'
+import { kitConditions, kitWhatsappLink, originalKitBenefit, type KitBenefit } from '@/lib/kit-benefit'
 
 type Props = { user: Identity; registration: Registration | null; onBack: () => void; onReset: () => Promise<void> }
 // Abre el formulario de reseña de la ficha del IMCYC; una búsqueda obligaba a
@@ -29,6 +30,7 @@ export function ServiceSelection({ user, registration, onBack, onReset }: Props)
   const [opinionConsent, setOpinionConsent] = useState(registration?.opinion_consent === true)
   const [code, setCode] = useState(registration?.unique_code ?? '')
   const [issuedAt, setIssuedAt] = useState(registration?.completed_at ?? '')
+  const [benefit, setBenefit] = useState(registration?.benefit ?? originalKitBenefit)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [downloading, setDownloading] = useState(false)
@@ -44,11 +46,12 @@ export function ServiceSelection({ user, registration, onBack, onReset }: Props)
     setSaving(true)
     setError('')
     try {
-      const result = await api<{ code: string; issuedAt: string }>('survey.submit', {
+      const result = await api<{ code: string; issuedAt: string; benefit: KitBenefit }>('survey.submit', {
         body: { service: selectedService, application: application.trim(), clarity, serviceRating, opinionConsent },
       })
       setCode(result.code)
       setIssuedAt(result.issuedAt)
+      setBenefit(result.benefit)
       setStep(3)
     } catch (error) { setError(errorMessage(error)) }
     finally { setSaving(false) }
@@ -59,7 +62,7 @@ export function ServiceSelection({ user, registration, onBack, onReset }: Props)
     setError('')
     try {
       const { downloadKit } = await import('@/lib/download-kit')
-      await downloadKit({ name: user.name, company: user.company, service: selectedService, code, issuedAt })
+      await downloadKit({ name: user.name, company: user.company, service: selectedService, code, issuedAt, benefit })
     } catch (error) { setError(errorMessage(error)) }
     finally { setDownloading(false) }
   }
@@ -68,7 +71,7 @@ export function ServiceSelection({ user, registration, onBack, onReset }: Props)
 
   return <section className="space-y-7">
     <div className="flex items-start justify-between gap-4">
-      <div><p className="font-mono text-[10px] uppercase tracking-[0.28em] text-cyan-300">Paso 0{step} / 04</p><h1 className="mt-2 text-2xl font-extrabold tracking-wide text-slate-50">{step === 2 ? 'RESPONDE LA ENCUESTA' : step === 3 ? 'DEJA TU RECOMENDACIÓN' : 'KIT DE CONTINUIDAD'}</h1><p className="mt-2 text-sm leading-6 text-slate-400">Hola, {user.name}. {step === 2 ? 'Selecciona el servicio y responde las tres preguntas.' : step === 3 ? 'Ayúdanos a seguir construyendo una mejor comunidad IMCYC.' : 'Descarga tu beneficio como agradecimiento por tu participación.'}</p></div>
+      <div><p className="font-mono text-[10px] uppercase tracking-[0.28em] text-cyan-300">Paso 0{step} / 04</p><h1 className="mt-2 text-2xl font-extrabold tracking-wide text-slate-50">{step === 2 ? 'RESPONDE LA ENCUESTA' : step === 3 ? 'DEJA TU RECOMENDACIÓN' : benefit.title}</h1><p className="mt-2 text-sm leading-6 text-slate-400">Hola, {user.name}. {step === 2 ? 'Selecciona el servicio y responde las tres preguntas.' : step === 3 ? 'Ayúdanos a seguir construyendo una mejor comunidad IMCYC.' : 'Descarga tu beneficio como agradecimiento por tu participación.'}</p></div>
       <div className="rounded-full border border-emerald-400/30 bg-emerald-400/10 p-2 text-emerald-300"><Star aria-hidden="true" className="h-5 w-5" /></div>
     </div>
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
@@ -95,9 +98,9 @@ export function ServiceSelection({ user, registration, onBack, onReset }: Props)
       <button type="button" disabled={!reviewDone} onClick={() => setStep(4)} className="w-full rounded-xl bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 disabled:opacity-40">Continuar al kit</button>
     </div>}
     {step === 4 && <div className="space-y-5">
-      <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-5"><p className="text-sm font-semibold text-emerald-200">Kit aprobado</p><p className="mt-2 text-lg font-bold text-slate-50">{discountText}</p><p className="mt-3 break-words text-xs text-slate-300">Tu ID único: <span className="font-mono text-cyan-300">{code}</span></p><p className="mt-3 text-xs leading-5 text-slate-400">Válido 30 días naturales a partir de la fecha de emisión. No transferible. No acumulable con otros descuentos, becas o promociones. Descuento aplicable sobre el precio lista antes de IVA.</p></div>
+      <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-5"><p className="text-sm font-semibold text-emerald-200">Kit aprobado</p><p className="mt-2 text-lg font-bold text-slate-50">{benefit.benefit}{benefit.description && <span className="mt-1 block text-sm">{benefit.description}</span>}</p><p className="mt-3 break-words text-xs text-slate-300">Tu ID único: <span className="font-mono text-cyan-300">{code}</span></p><p className="mt-3 text-xs leading-5 text-slate-400">{kitConditions(benefit)}</p></div>
       <button type="button" onClick={downloadPdf} disabled={downloading} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 disabled:opacity-50"><Download className="h-4 w-4" aria-hidden="true" />{downloading ? 'Generando PDF…' : 'Descargar kit en PDF'}</button>
-      <div className="rounded-2xl border border-slate-700 bg-slate-800/60 p-5"><p className="text-sm font-semibold text-slate-100">Haz válido tu kit:</p><ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300"><li className="flex flex-wrap items-center gap-x-2 gap-y-1"><MessageCircle className="h-4 w-4 shrink-0 text-cyan-300" aria-hidden="true" /><span className="font-semibold text-slate-200">WhatsApp Directo:</span><a href="https://wa.me/525521045612" target="_blank" rel="noreferrer" className="break-all font-mono text-cyan-300 underline">55 2104 5612</a></li><li className="flex flex-wrap items-center gap-x-2 gap-y-1"><Mail className="h-4 w-4 shrink-0 text-cyan-300" aria-hidden="true" /><span className="font-semibold text-slate-200">Correo Electrónico:</span><a href="mailto:cursos@imcyc.com" className="break-all text-cyan-300 underline">cursos@imcyc.com</a></li></ul></div>
+      <div className="rounded-2xl border border-slate-700 bg-slate-800/60 p-5"><p className="text-sm font-semibold text-slate-100">Haz válido tu kit:</p><ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300"><li className="flex flex-wrap items-center gap-x-2 gap-y-1"><MessageCircle className="h-4 w-4 shrink-0 text-cyan-300" aria-hidden="true" /><span className="font-semibold text-slate-200">WhatsApp Directo:</span><a href={kitWhatsappLink(benefit.whatsapp)} target="_blank" rel="noreferrer" className="break-all font-mono text-cyan-300 underline">{benefit.whatsapp}</a></li><li className="flex flex-wrap items-center gap-x-2 gap-y-1"><Mail className="h-4 w-4 shrink-0 text-cyan-300" aria-hidden="true" /><span className="font-semibold text-slate-200">Correo Electrónico:</span><a href={`mailto:${benefit.email}`} className="break-all text-cyan-300 underline">{benefit.email}</a></li></ul></div>
     </div>}
     <div className="flex items-center justify-between border-t border-slate-700/70 pt-5">
       <button type="button" disabled={saving || (step === 2 && !!code)} onClick={step === 2 ? onBack : () => setStep(step - 1)} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 disabled:opacity-40"><ArrowLeft className="h-4 w-4" aria-hidden="true" /> Volver</button>

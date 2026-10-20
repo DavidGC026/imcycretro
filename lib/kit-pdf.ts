@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf'
+import type { KitBenefit } from './kit-benefit'
 
 export type KitDetails = {
   name: string
@@ -6,6 +7,8 @@ export type KitDetails = {
   service: string
   code: string
   issuedAt: string
+  benefit: KitBenefit
+  example?: boolean
 }
 
 export type KitAssets = {
@@ -19,6 +22,7 @@ const GRAY = '#888888'
 
 // Formato vertical de 8 × 10 pulgadas, con las proporciones de la referencia.
 export function createKitPdf(details: KitDetails, assets: KitAssets) {
+  const benefit = details.benefit
   const pdf = new jsPDF({ unit: 'pt', format: [576, 720], compress: true })
   pdf.setProperties({ title: 'Kit de continuidad IMCYC', subject: details.code, author: 'Instituto Mexicano del Cemento y del Concreto A.C.' })
   pdf.addFileToVFS('Poppins-Bold.ttf', assets.titleFont)
@@ -33,18 +37,22 @@ export function createKitPdf(details: KitDetails, assets: KitAssets) {
   pdf.setFont('Poppins', 'bold')
   pdf.setFontSize(27)
   pdf.setTextColor(GRAY)
-  pdf.text('KIT DE CONTINUIDAD', 288, 152, { align: 'center' })
+  centeredText(pdf, benefit.title, 288, 152, 480, 27, 10)
   pdf.setFont('Poppins', 'normal')
   pdf.setFontSize(15)
   pdf.text('Gracias por participar en nuestra experiencia.', 288, 173, { align: 'center' })
+  if (details.example) {
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(9)
+    pdf.setTextColor('#9D3030')
+    pdf.text('EJEMPLO - SIN VALIDEZ', 288, 187, { align: 'center' })
+  }
 
   roundedCard(pdf, 52, 192, 472, 119, 20, '#008ABD')
   pdf.setFont('helvetica', 'bold')
   pdf.setTextColor(BLUE)
-  pdf.setFontSize(40)
-  pdf.text('10% DE DESCUENTO', 288, 253, { align: 'center' })
-  pdf.setFontSize(18)
-  pdf.text('EN CUALQUIER CONSTANCIA DE APTITUD', 288, 281.5, { align: 'center' })
+  centeredBlock(pdf, benefit.benefit, 288, 236, 438, 36, 12, 2)
+  centeredBlock(pdf, benefit.description, 288, 279, 438, 17, 8, 3)
 
   roundedCard(pdf, 52, 329, 472, 157, 27, '#E0E2E4')
   const issueDate = new Intl.DateTimeFormat('es-MX', {
@@ -71,23 +79,22 @@ export function createKitPdf(details: KitDetails, assets: KitAssets) {
   pdf.setTextColor('#FFFFFF')
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(10)
-  pdf.text('MENCIONE ESTE ID AL REGISTRARSE', 288, 531, { align: 'center' })
+  pdf.text(details.example ? 'DOCUMENTO DE EJEMPLO - SIN VALIDEZ' : 'MENCIONE ESTE ID AL REGISTRARSE', 288, 531, { align: 'center' })
   pdf.setFontSize(22)
-  pdf.text(details.code, 288, 566, { align: 'center' })
+  centeredText(pdf, details.example ? 'EJEMPLO' : details.code, 288, 566, 435, 22, 13)
 
   pdf.setTextColor('#0078AB')
   pdf.setFontSize(14)
-  pdf.text('Haz valido tu kit:', 288, 609, { align: 'center' })
-  contactLine(pdf, 'WhatsApp directo: ', '55 2104 5612', 626, 'https://wa.me/525521045612', true)
-  contactLine(pdf, 'Correo Electrónico: ', 'cursos@imcyc.com', 643, 'mailto:cursos@imcyc.com')
+  pdf.text('Haz válido tu kit:', 288, 609, { align: 'center' })
+  const digits = benefit.whatsapp.replace(/\D/g, '')
+  contactLine(pdf, 'WhatsApp directo: ', benefit.whatsapp, 626, `https://wa.me/${digits.length === 10 ? '52' : ''}${digits}`, true)
+  contactLine(pdf, 'Correo Electrónico: ', benefit.email, 643, `mailto:${benefit.email}`)
 
   pdf.setFont('helvetica', 'bold')
   pdf.setTextColor(GRAY)
   pdf.setFontSize(10)
-  pdf.text([
-    'Válido 30 días naturales a partir de la fecha de emisión | No Transferible | No acumulable con',
-    'otros descuentos, becas o promociones | Descuento aplicable sobre el precio lista antes de IVA',
-  ], 288, 666, { align: 'center', lineHeightFactor: 1.15 })
+  const conditions = `Válido ${benefit.validityDays} ${benefit.validityDays === 1 ? 'día natural' : 'días naturales'} a partir de la fecha de emisión. ${benefit.conditions}`
+  centeredBlock(pdf, conditions, 288, 674, 482, 10, 6, 5)
   pdf.setFont('helvetica', 'normal')
   pdf.setTextColor('#83888C')
   pdf.setFontSize(9)
@@ -101,6 +108,8 @@ export function createKitPdf(details: KitDetails, assets: KitAssets) {
 }
 
 function contactLine(pdf: jsPDF, label: string, value: string, y: number, url: string, underline = false) {
+  pdf.setFontSize(10)
+  while (pdf.getTextWidth(label + value) > 480 && pdf.getFontSize() > 6.5) pdf.setFontSize(pdf.getFontSize() - 0.25)
   pdf.setFont('helvetica', 'bold')
   const labelWidth = pdf.getTextWidth(label)
   pdf.setFont('helvetica', 'normal')
@@ -115,6 +124,22 @@ function contactLine(pdf: jsPDF, label: string, value: string, y: number, url: s
     pdf.setLineWidth(0.5)
     pdf.line(x + labelWidth, y + 1.2, x + labelWidth + valueWidth, y + 1.2)
   }
+}
+
+function centeredText(pdf: jsPDF, text: string, x: number, y: number, width: number, size: number, minimum: number) {
+  pdf.setFontSize(size)
+  while (pdf.getTextWidth(text) > width && size > minimum) { size -= 0.25; pdf.setFontSize(size) }
+  pdf.text(text, x, y, { align: 'center' })
+}
+
+function centeredBlock(pdf: jsPDF, text: string, x: number, center: number, width: number, size: number, minimum: number, maxLines: number) {
+  pdf.setFontSize(size)
+  let lines = pdf.splitTextToSize(text, width) as string[]
+  while (lines.length > maxLines && size > minimum) {
+    size -= 0.25; pdf.setFontSize(size); lines = pdf.splitTextToSize(text, width) as string[]
+  }
+  const height = size * 1.15
+  pdf.text(lines, x, center - (lines.length - 1) * height / 2, { align: 'center', lineHeightFactor: 1.15 })
 }
 
 function roundedCard(pdf: jsPDF, x: number, y: number, width: number, height: number, radius: number, border: string) {

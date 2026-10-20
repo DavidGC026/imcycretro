@@ -169,6 +169,72 @@ python3 -m venv /tmp/imcyc-test-env
 /tmp/imcyc-test-env/bin/python tests/export.py
 ```
 
+## Integración privada con el CMS
+
+`public/api/cms.php` permite que el CMS consulte los datos y ejecute las mismas
+operaciones del panel desde su servidor. El navegador utiliza únicamente las
+rutas autenticadas del CMS; el secreto del puente permanece en ambos servidores.
+Los usuarios, hashes y cookies originales de Experiencia conservan su mecanismo
+de autenticación. El puente no abre sesiones PHP ni representa una cuenta de Exp.
+
+Instala `backend/cms-bridge.php` junto a los demás archivos privados del backend.
+El wrapper utiliza `/var/www/exp-imcyc-api/cms-bridge.php`, o la ruta indicada por
+`EXP_IMCYC_CMS_BACKEND`. La configuración independiente se carga de
+`/etc/exp-imcyc/cms-bridge.php` o de `EXP_IMCYC_CMS_CONFIG`; el ejemplo está en
+`backend/cms-bridge-config.example.php`. Su `secret` debe ser nuevo y aleatorio,
+de al menos 32 bytes. No reutilices contraseñas, secretos de sesión ni el token
+de Google Sheets. El archivo debe ser privado, por ejemplo `root:www-data 0640`.
+Prepara `nonce_path` fuera de la raíz pública, con propietario `www-data` y modo
+`0700`; sus archivos de protección contra reenvíos se crean en modo `0600`.
+Sin configuración válida o sin almacenamiento privado disponible, se rechaza la
+operación.
+
+El contrato es `POST /exp-imcyc/api/cms.php`, con JSON `{action, params}` y los
+encabezados `X-IMCYC-CMS-Timestamp` (segundos Unix), `X-IMCYC-CMS-Nonce` (64 dígitos
+hexadecimales aleatorios) y `X-IMCYC-CMS-Signature` (HMAC-SHA256 hexadecimal). La
+firma utiliza exactamente `timestamp + "\n" + nonce + "\n" + cuerpoJSON`, sin
+salto de línea final. Se aceptan hasta 32 KiB y un desfase de reloj de 60 segundos.
+Una petición firmada solo puede utilizar su nonce una vez. Los errores contienen
+únicamente `{error}`; las respuestas no se almacenan en caché.
+
+| Acción | Parámetros | Respuesta |
+| --- | --- | --- |
+| `registrations.list` | `search`, `status`, `service`, `consent`, `page` opcionales | Mismo listado paginado y estadísticas del panel |
+| `registrations.detail` | `id` entero positivo | `{registration}` o 404 |
+| `registrations.export` | Mismos filtros, sin limitar por página | XLSX, `Content-Disposition`, `X-Export-Count` |
+| `registrations.delete` | `id` entero positivo | `{deleted, name, sheetUpdated}` |
+| `sheet.status` | `{}` | `{configured}` sin exponer URL ni token |
+| `sheet.reload` | `{}` | `{rows}` |
+| `users.list` | `{}` | `{users}` con `id`, `username`, `created_at`, `isCurrent:false` |
+| `users.create` | `username`, `password` | `{created, username}` |
+| `users.password` | `id`, `password` | `{changed, username}` |
+
+El CMS comprueba sus propios permisos antes de cada operación. Para administrar
+cuentas de Exp también confirma la contraseña actual del usuario del CMS antes
+de enviar la petición firmada. Las nuevas contraseñas de Exp conservan las reglas
+de 12 a 128 caracteres y Argon2id; cambiar una invalida las sesiones originales
+anteriores de esa cuenta en su siguiente petición. El límite de operaciones de
+cuentas tiene un bucket independiente del acceso del panel original.
+
+Las operaciones de borrado y recarga conservan el comportamiento de Sheets:
+si Google falla después de borrar en la base, `sheetUpdated` es `false`; no se
+restaura el registro eliminado. La recarga permite recuperar el espejo. El
+cliente servidor debe contemplar hasta 60 segundos para estas operaciones y la
+exportación, y evitar repetir automáticamente una mutación tras un timeout.
+
+Pruebas sin datos reales:
+
+```bash
+php tests/validation.php
+php tests/cms-bridge.php
+EXP_IMCYC_BRIDGE_QA_FILE=/ruta/privada/fixture-sintetico.json python3 tests/cms-bridge-api.py
+```
+
+La prueba HTTP exige una configuración privada marcada como sintética, una URL
+loopback, una base `imcyc_exp_bridge_qa_*` y una hoja falsa local; nunca se ejecuta
+contra producción. `tests/cms-bridge-router.php` y `tests/cms-bridge-sheet.py` son
+utilidades del servidor de QA y no deben publicarse.
+
 ## Hoja de cálculo de Google
 
 Cada encuesta completada se copia a una hoja de cálculo mediante un Apps Script
@@ -257,3 +323,37 @@ Para regenerarlo con [python-qrcode](https://github.com/lincolnloop/python-qrcod
 Referencias técnicas: [exportación estática de Next.js](https://nextjs.org/docs/app/guides/static-exports),
 [parámetros de sesión PHP](https://www.php.net/manual/en/function.session-set-cookie-params.php)
 y [consultas preparadas PDO](https://www.php.net/pdo.prepared-statements).
+
+## Obsequio editable desde el administrador
+
+En `https://www.imcyc.com.mx/admin?section=experiencia`, **Obsequio y ejemplo**
+permite cambiar título, beneficio, descripción, vigencia (1–365 días), condiciones,
+WhatsApp y correo. La vista previa y el PDF de ejemplo muestran los cambios del
+formulario antes de guardarlos. El ejemplo usa datos ficticios, lleva la marca
+**EJEMPLO - SIN VALIDEZ** y no crea participantes ni folios. Se necesita el permiso
+`experiencia`; no se conceden herramientas adicionales automáticamente.
+
+La configuración vive en `kit_settings` de la base original de Experiencia,
+consultada y guardada por el puente HMAC. El guardado usa una revisión para
+rechazar cambios concurrentes. Al completar una encuesta se guarda `kit_snapshot`
+en la misma transacción que el folio: los cambios posteriores no alteran el PDF,
+los contactos o las condiciones de los kits emitidos, incluidos los reintentos.
+Los registros anteriores sin snapshot conservan el beneficio histórico original.
+El CMS y el sitio público usan el mismo generador PDF; mantener sincronizados
+`lib/kit-benefit.ts` y `lib/kit-pdf.ts` con sus copias bajo
+`src/lib/experiencia/client/` del CMS.
+
+Antes de publicar el backend, ejecutar una sola vez (es idempotente):
+
+```sh
+php scripts/migrate-kit.php
+```
+
+Esta migración requiere una conexión con permiso de DDL y no modifica las filas
+existentes. La cuenta web mantiene sus permisos limitados. Publicar después el
+backend compatible y ambos frontends. El valor inicial sigue siendo 10% de
+descuento en constancias de aptitud por 30 días; no cambia por desplegar código.
+
+`tests/kit-benefit-api.py` verifica guardado, validación, conflictos, encuestas
+nuevas, registros históricos y reintentos, exclusivamente con una fixture privada
+y una base sintética en loopback (`EXP_IMCYC_KIT_QA_FILE`).

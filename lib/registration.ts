@@ -1,3 +1,5 @@
+import type { KitBenefit } from './kit-benefit'
+
 export type Identity = { name: string; company: string; email: string }
 
 // Cada grupo se lista alfabéticamente; el formulario y el filtro del panel los
@@ -19,6 +21,7 @@ export function opinionConsentLabel(consent: boolean | null) {
 }
 
 export type Registration = {
+  benefit: KitBenefit | null
   id: number
   full_name: string
   company: string

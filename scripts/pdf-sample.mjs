@@ -1,5 +1,6 @@
 import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { createKitPdf } from '../lib/kit-pdf.ts'
+import { originalKitBenefit } from '../lib/kit-benefit.ts'
 
 const assets = {
   logo: new Uint8Array(await readFile(new URL('../public/logo-imcyc.png', import.meta.url))),
@@ -7,8 +8,8 @@ const assets = {
   subtitleFont: (await readFile(new URL('../public/fonts/Poppins-Medium.ttf', import.meta.url))).toString('base64'),
 }
 const details = {
-  name: 'Prueba', company: 'IMCYC', service: 'Certificación',
-  code: 'IMCYC-8630C9FF2BAD16A4', issuedAt: '2026-09-07T18:00:00Z',
+  name: 'Participante de ejemplo', company: 'Empresa de ejemplo', service: 'Encuesta IMCYC',
+  code: 'EJEMPLO', issuedAt: new Date().toISOString(), benefit: originalKitBenefit, example: true,
 }
 await mkdir('output/pdf', { recursive: true })
 await writeFile('output/pdf/kit-continuidad-imcyc.pdf', new Uint8Array(createKitPdf(details, assets).output('arraybuffer')))

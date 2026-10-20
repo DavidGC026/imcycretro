@@ -35,16 +35,18 @@ function submitSurvey(array $body): array
     $connection = database();
     $connection->beginTransaction();
     try {
-        $statement = $connection->prepare('SELECT unique_code, completed_at FROM registrations WHERE id = ? FOR UPDATE');
+        $statement = $connection->prepare('SELECT unique_code, completed_at, discount_text, kit_snapshot FROM registrations WHERE id = ? FOR UPDATE');
         $statement->execute([$_SESSION['registration_id']]);
         $registration = $statement->fetch();
         if (!$registration) throw new HttpError(409, 'Tu registro no está disponible. Ingresa tus datos nuevamente.');
         // Un reintento de red conserva el folio y las respuestas originales.
         if ($registration['completed_at'] === null) {
+            $benefit = kitConfiguration($connection, true)['benefit'];
+            $registration['kit_snapshot'] = json_encode($benefit, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
             $registration['unique_code'] = 'IMCYC-' . strtoupper(bin2hex(random_bytes(8)));
             $registration['completed_at'] = gmdate('Y-m-d H:i:s');
-            $statement = $connection->prepare('UPDATE registrations SET service = ?, application = ?, clarity = ?, service_rating = ?, unique_code = ?, discount_text = ?, completed_at = ?, opinion_consent = ?, opinion_consent_at = ?, opinion_consent_text = ? WHERE id = ?');
-            $statement->execute([$service, $application, $clarity, $rating, $registration['unique_code'], DISCOUNT_TEXT, $registration['completed_at'],
+            $statement = $connection->prepare('UPDATE registrations SET service = ?, application = ?, clarity = ?, service_rating = ?, unique_code = ?, discount_text = ?, kit_snapshot = ?, completed_at = ?, opinion_consent = ?, opinion_consent_at = ?, opinion_consent_text = ? WHERE id = ?');
+            $statement->execute([$service, $application, $clarity, $rating, $registration['unique_code'], mb_substr(trim($benefit['benefit'] . ' ' . $benefit['description']), 0, 200), $registration['kit_snapshot'], $registration['completed_at'],
                 $opinionConsent === null ? null : (int) $opinionConsent,
                 $opinionConsent === null ? null : $registration['completed_at'],
                 $opinionConsent === null ? null : OPINION_CONSENT_TEXT, $_SESSION['registration_id']]);
@@ -53,7 +55,7 @@ function submitSurvey(array $body): array
         // La copia en la hoja ocurre con el registro ya guardado: si Google falla,
         // el participante conserva su folio y scripts/sync-sheet.php lo recupera.
         pushRegistrationToSheet((int) $_SESSION['registration_id']);
-        return ['code' => $registration['unique_code'], 'issuedAt' => str_replace(' ', 'T', $registration['completed_at']) . 'Z'];
+        return ['code' => $registration['unique_code'], 'issuedAt' => str_replace(' ', 'T', $registration['completed_at']) . 'Z', 'benefit' => registrationKitBenefit($registration)];
     } catch (Throwable $error) {
         if ($connection->inTransaction()) $connection->rollBack();
         throw $error;
@@ -68,6 +70,11 @@ function submitSurvey(array $body): array
 function deleteRegistration(array $body): array
 {
     requireAdmin();
+    return deleteRegistrationRecord($body);
+}
+
+function deleteRegistrationRecord(array $body): array
+{
     $id = $body['id'] ?? null;
     if (!is_int($id) || $id < 1) throw new HttpError(422, 'Registro no válido.');
     $connection = database();
@@ -84,6 +91,11 @@ function deleteRegistration(array $body): array
 function reloadRegistrationsSheet(): array
 {
     requireAdmin();
+    return reloadRegistrationsSheetData();
+}
+
+function reloadRegistrationsSheetData(): array
+{
     if (sheetSyncSettings() === null) throw new HttpError(409, 'La hoja de cálculo no está configurada en este servidor.');
     try {
         return ['rows' => reloadSheet()];
@@ -96,7 +108,7 @@ function reloadRegistrationsSheet(): array
 function currentRegistration(): array
 {
     if (empty($_SESSION['registration_id'])) return ['registration' => null];
-    $statement = database()->prepare('SELECT id, full_name, email, company, service, application, clarity, service_rating, unique_code, created_at, completed_at, opinion_consent, opinion_consent_at, opinion_consent_text FROM registrations WHERE id = ?');
+    $statement = database()->prepare('SELECT id, full_name, email, company, service, application, clarity, service_rating, unique_code, discount_text, kit_snapshot, created_at, completed_at, opinion_consent, opinion_consent_at, opinion_consent_text FROM registrations WHERE id = ?');
     $statement->execute([$_SESSION['registration_id']]);
     $row = $statement->fetch();
     return ['registration' => $row ? serializeRegistration($row) : null];
@@ -105,6 +117,11 @@ function currentRegistration(): array
 function listRegistrations(array $query): array
 {
     requireAdmin();
+    return queryRegistrations($query);
+}
+
+function queryRegistrations(array $query): array
+{
     [$where, $parameters] = registrationFilters($query);
     $pageValue = $query['page'] ?? '1';
     if (!is_string($pageValue) || !ctype_digit($pageValue) || strlen($pageValue) > 7) throw new HttpError(422, 'Página no válida.');
@@ -115,7 +132,7 @@ function listRegistrations(array $query): array
     $total = (int) $statement->fetchColumn();
     $page = max(1, min((int) $pageValue, max(1, (int) ceil($total / $pageSize))));
     $offset = ($page - 1) * $pageSize;
-    $statement = $connection->prepare('SELECT id, full_name, email, company, service, application, clarity, service_rating, unique_code, created_at, completed_at, opinion_consent, opinion_consent_at, opinion_consent_text FROM registrations' . $where . " ORDER BY created_at DESC, id DESC LIMIT $pageSize OFFSET $offset");
+    $statement = $connection->prepare('SELECT id, full_name, email, company, service, application, clarity, service_rating, unique_code, discount_text, kit_snapshot, created_at, completed_at, opinion_consent, opinion_consent_at, opinion_consent_text FROM registrations' . $where . " ORDER BY created_at DESC, id DESC LIMIT $pageSize OFFSET $offset");
     $statement->execute($parameters);
     $registrations = array_map('serializeRegistration', $statement->fetchAll());
     $stats = $connection->query('SELECT COUNT(*) AS total, COUNT(completed_at) AS completed, AVG(service_rating) AS average_rating FROM registrations')->fetch();

@@ -5,6 +5,7 @@ import { AlertTriangle, Download, Trash2, X } from 'lucide-react'
 import { api, ApiError, errorMessage } from '@/lib/api'
 import { displayDate, type Registration } from '@/lib/registration'
 import { OpinionConsent } from './OpinionConsent'
+import { originalKitBenefit } from '@/lib/kit-benefit'
 
 type Props = {
   registration: Registration
@@ -32,7 +33,7 @@ export function RegistrationDetail({ registration, onClose, onDeleted, onSession
     setError('')
     try {
       const { downloadKit } = await import('@/lib/download-kit')
-      await downloadKit({ name: registration.full_name, company: registration.company, service: registration.service!, code: registration.unique_code, issuedAt: registration.completed_at })
+      await downloadKit({ name: registration.full_name, company: registration.company, service: registration.service!, code: registration.unique_code, issuedAt: registration.completed_at, benefit: registration.benefit ?? originalKitBenefit })
     } catch (error) { setError(errorMessage(error)) }
     finally { setDownloading(false) }
   }

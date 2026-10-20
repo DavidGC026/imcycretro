@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS registrations (
     opinion_consent_text VARCHAR(200) NULL,
     unique_code VARCHAR(40) NULL,
     discount_text VARCHAR(200) NULL,
+    kit_snapshot LONGTEXT NULL CHECK (kit_snapshot IS NULL OR JSON_VALID(kit_snapshot)),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     completed_at DATETIME NULL,

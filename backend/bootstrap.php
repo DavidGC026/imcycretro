@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/validation.php';
+require_once __DIR__ . '/kit-benefit.php';
 
 function config(): array
 {
@@ -90,8 +91,13 @@ function requireAdmin(): array
 
 function rateLimit(string $scope, string $identity, int $limit, int $seconds): void
 {
+    consumeRateLimit($scope, $identity, $limit, $seconds, config()['rate_limit_secret']);
+}
+
+function consumeRateLimit(string $scope, string $identity, int $limit, int $seconds, string $secret): void
+{
     $connection = database();
-    $bucket = hash_hmac('sha256', $scope . ':' . $identity, config()['rate_limit_secret']);
+    $bucket = hash_hmac('sha256', $scope . ':' . $identity, $secret);
     $statement = $connection->prepare('INSERT INTO request_limits (bucket, attempts, expires_at) VALUES (?, 1, DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? SECOND))
         ON DUPLICATE KEY UPDATE attempts = IF(expires_at <= UTC_TIMESTAMP(), 1, attempts + 1),
         expires_at = IF(expires_at <= UTC_TIMESTAMP(), VALUES(expires_at), expires_at)');
@@ -107,6 +113,8 @@ function rateLimit(string $scope, string $identity, int $limit, int $seconds): v
 
 function serializeRegistration(array $row): array
 {
+    $row['benefit'] = registrationKitBenefit($row);
+    unset($row['kit_snapshot'], $row['discount_text']);
     $row['id'] = (int) $row['id'];
     $row['service_rating'] = $row['service_rating'] === null ? null : (int) $row['service_rating'];
     $row['opinion_consent'] = isset($row['opinion_consent']) ? (bool) $row['opinion_consent'] : null;
